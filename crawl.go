@@ -1,6 +1,7 @@
 package crawl
 
 import (
+	"errors"
 	"net/http"
 	"net/http/cookiejar"
 	"sync"
@@ -13,14 +14,15 @@ import (
 
 // Options - Crawl options.
 type Options struct {
-	MaxRequestsPerMinute int // one request is send every MaxRequestsPerMinute / 60 seconds
+	MaxRequestsPerMinute int
+	MaxRequestsPerSecond int
 	QueueCapacity        int // capacity of queue channel
 }
 
 // Crawl - Crawl structure.
 // It keeps track of one-client crawl.
 // Requests are scheduled in queue (look QueueCapacity option).
-// Then depending on MaxRequestsPerMinute options they are executed.
+// Then depending on MaxRequestsPerSecond options they are executed.
 // Each request should contain at least one Callback.
 // Which is a interface{} key to Handler.
 //
@@ -37,7 +39,7 @@ type Crawl struct {
 	*http.Client
 
 	mutex    *sync.RWMutex
-	handlers map[interface{}]Handler
+	handlers map[interface{}][]Handler
 
 	closeCh chan bool // close channel
 	doneCh  chan bool // done channel
@@ -46,14 +48,12 @@ type Crawl struct {
 }
 
 // Handler - Crawl handler.
-// Context contains crawl pointer which can be
-// retrieved using crawl.FromContext method
 type Handler func(context.Context, *Crawl, *Response) error
 
 // DefaultOptions - Crawl default options.
 // They are used when a new crawl is created.
 var DefaultOptions = &Options{
-	MaxRequestsPerMinute: 1000,
+	MaxRequestsPerSecond: 500,
 	QueueCapacity:        100000,
 }
 
@@ -71,33 +71,33 @@ func New() (crawl *Crawl) {
 	crawl = &Crawl{
 		Client:   c,
 		mutex:    new(sync.RWMutex),
-		handlers: make(map[interface{}]Handler),
+		handlers: make(map[interface{}][]Handler),
 		closeCh:  make(chan bool, 1),
 		doneCh:   make(chan bool, 1),
 	}
-	crawl.SetOptions(DefaultOptions)
+	crawl.SetOptions(&Options{
+		MaxRequestsPerSecond: DefaultOptions.MaxRequestsPerSecond,
+		QueueCapacity:        DefaultOptions.QueueCapacity,
+	})
 	return
 }
 
 // SetOptions - Sets crawl options.
 // If QueueCapacity option is changed, it creates a new Queue.
-func (crawl *Crawl) SetOptions(opts *Options) {
-	if opts == nil {
+func (crawl *Crawl) SetOptions(options *Options) {
+	if options == nil {
 		return
 	}
 
 	// Compare queue capacity settings
 	// Create new queue if settings are changed
 	// Or current settings are empty
-	if copts := crawl.Options; copts == nil ||
-		(opts.QueueCapacity != 0 && copts.QueueCapacity != opts.QueueCapacity) {
-
-		// Create queue with new capacity
-		crawl.Queue = NewQueue(opts.QueueCapacity)
+	if current := crawl.Options; current == nil || current.QueueCapacity < options.QueueCapacity {
+		crawl.Queue = NewQueue(options.QueueCapacity)
 	}
 
 	// Set options
-	crawl.Options = opts
+	crawl.Options = options
 }
 
 // Do - Makes http.Request using crawl.Client
@@ -116,28 +116,26 @@ func (crawl *Crawl) Do(req *Request) (resp *Response, err error) {
 		}
 	}
 
-	// Make request
-	r, err := crawl.Client.Do(rq)
+	// Send request and read response
+	res, err := crawl.Client.Do(rq)
 	if err != nil {
 		return
 	}
 
-	resp = &Response{Response: r}
-
-	return
+	return &Response{Response: res}, nil
 }
 
 // Execute - Makes a http request using crawl.Client.
 // If request HTML is set to true ParseHTML() method is executed on Response.
 // Then all callbacks are executed with context containing crawl and response.
 func (crawl *Crawl) Execute(req *Request) (resp *Response, err error) {
-	// Make request
+	// Send request and read response
 	resp, err = crawl.Do(req)
 	if err != nil {
 		return
 	}
 
-	// If request.Raw is not true - parse html
+	// Parse HTML if not request.Raw
 	if !req.Raw {
 		err = resp.ParseHTML()
 		if err != nil {
@@ -145,23 +143,22 @@ func (crawl *Crawl) Execute(req *Request) (resp *Response, err error) {
 		}
 	}
 
-	// Set request context if empty
+	// Set new request context if empty
 	if req.Context == nil {
 		req.Context = context.Background()
 	}
 
-	// ctx = context.WithValue(ctx, "crawl", crawl)
-	// ctx = context.WithValue(ctx, "response", resp)
-
 	// Run handlers
 	for _, cb := range req.Callbacks {
-		if handler := crawl.GetHandler(cb); handler != nil {
-			err = handler(req.Context, crawl, resp)
-			if err != nil {
-				return
+		if handlers := crawl.GetHandlers(cb); len(handlers) >= 1 {
+			for _, handler := range handlers {
+				err = handler(req.Context, crawl, resp)
+				if err != nil {
+					return
+				}
 			}
 		} else {
-			log.Warningf("Handler %v was not found", cb)
+			log.Warningf("Handlers for %v was not found", cb)
 		}
 	}
 
@@ -171,40 +168,51 @@ func (crawl *Crawl) Execute(req *Request) (resp *Response, err error) {
 }
 
 // Start - Starts reading from queue.
-// After crawl will be done
 func (crawl *Crawl) Start() (err error) {
 	defer func() {
 		crawl.doneCh <- true
 	}()
 
+	// Ticker for request scheduling
+	// it ticks every (second / max request per second)
+	// making it schedule maximum (max requests per second)
+	// of requests per second
 	var tick <-chan time.Time
 	if crawl.Options.MaxRequestsPerMinute > 0 {
-		tick = time.Tick(time.Minute / time.Duration(crawl.Options.MaxRequestsPerMinute))
+	} else if crawl.Options.MaxRequestsPerSecond > 0 {
+		tick = time.Tick(time.Second / time.Duration(crawl.Options.MaxRequestsPerSecond))
+	} else {
+		return errors.New("MaxRequestsPerMinute or MaxRequestsPerMinute must be set")
 	}
 
+	// Start scheduling requests
+	// until we have something to do.
+	// Also wait for new requests if some
+	// are already executing in background.
 	for crawl.Queue.Continue() {
 		if tick != nil {
 			<-tick
 		}
 
-		// Return if closed
+		// Stop if got a close signal
 		select {
 		case <-crawl.closeCh:
 			return
 		default:
 		}
 
-		// Get and start request
+		// Get request from queue and execute it
 		if request, ok := crawl.Queue.Get(); ok {
 			go crawl.executeRequest(request)
 		} else {
 			return
 		}
 	}
-
 	return
 }
 
+// executeRequest - Sends request, reads response
+// and executes proper handlers.
 func (crawl *Crawl) executeRequest(req *Request) {
 	if _, err := crawl.Execute(req); err != nil {
 		log.Warningf("ERR: %v on %s", err, req.String())
@@ -212,21 +220,23 @@ func (crawl *Crawl) executeRequest(req *Request) {
 	crawl.Queue.Done()
 }
 
-// Schedule - Schedules request.
+// Schedule - Schedules request for future execution.
+// Request will be executed as soon as possible.
+// Execution of requests is limited by MaxRequestsPerSecond.
 func (crawl *Crawl) Schedule(req *Request) {
 	crawl.Queue.Schedule(req)
 }
 
-// Handler - Adds crawl handler.
+// Handler - Adds new crawl handler.
 // Handler is a callback referenced by name.
 func (crawl *Crawl) Handler(name interface{}, h Handler) {
 	crawl.mutex.Lock()
-	crawl.handlers[name] = h
+	crawl.handlers[name] = append(crawl.handlers[name], h)
 	crawl.mutex.Unlock()
 }
 
-// GetHandler - Gets crawl handler by name.
-func (crawl *Crawl) GetHandler(name interface{}) Handler {
+// GetHandlers - Gets crawl handlers by name.
+func (crawl *Crawl) GetHandlers(name interface{}) []Handler {
 	crawl.mutex.RLock()
 	defer crawl.mutex.RUnlock()
 	return crawl.handlers[name]

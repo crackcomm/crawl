@@ -1,16 +1,22 @@
 # crawl
 
-Lightweight library for crawlers in go
+[![GoDoc](https://godoc.org/github.com/crackcomm/crawl?status.svg)](https://godoc.org/github.com/crackcomm/crawl) [![GoDoc](https://godoc.org/github.com/PuerkitoBio/goquery?status.svg)](https://godoc.org/github.com/PuerkitoBio/goquery)
 
-It is using [goquery](https://github.com/PuerkitoBio/goquery/) by default for HTML parsing.
+Lightweight library for crawlers in Go.
 
-# Documentation
+HTML parsing and extracting is done thanks to [goquery](https://github.com/PuerkitoBio/goquery/).
 
-[godoc.org/github.com/crackcomm/crawl](http://godoc.org/github.com/crackcomm/crawl/)
-[godoc.org/github.com/PuerkitoBio/goquery](http://godoc.org/github.com/PuerkitoBio/goquery/)
+## Usage
 
-Use `-v 2` flag to get requests logs.
+Examples can be found in [examples](https://github.com/crackcomm/crawl/tree/master/examples)
+directory.
 
-# License
+Use `-v 2` command line flag to get requests logs.
+More about logging in [glog](https://github.com/golang/glog/).
 
-Apache 2.0 License
+## License
+
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/

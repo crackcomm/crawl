@@ -16,7 +16,7 @@ func init() {
 	flag.Set("logtostderr", "true")
 }
 
-var maxReqs = flag.Int("max-reqs", 6000, "Max requests per minute")
+var maxReqs = flag.Int("max-reqs", 600, "Max requests per second")
 
 func main() {
 	defer log.Flush()

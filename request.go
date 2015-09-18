@@ -24,10 +24,8 @@ type Request struct {
 	Raw         bool
 	Source      *Response
 	Callbacks   []interface{}
-
-	Form map[string]string
-
-	Context context.Context
+	Form        map[string]string
+	Context     context.Context
 }
 
 // Callbacks - Helper for creating list of interfaces.
