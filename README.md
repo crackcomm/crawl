@@ -11,9 +11,6 @@ HTML parsing and extracting is done thanks to [goquery](https://github.com/Puerk
 Examples can be found in [examples](https://github.com/crackcomm/crawl/tree/master/examples)
 directory.
 
-Use `-v 2` command line flag to get requests logs.
-More about logging in [glog](https://github.com/golang/glog/).
-
 ## License
 
 
