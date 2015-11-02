@@ -1,3 +1,7 @@
+// This is only an example, please dont harm imdb servers, if you need movies
+// data checkout http://www.imdb.com/interfaces I can also recommend checking
+// out source code of https://github.com/BurntSushi/goim which implements
+// importing data into SQL databases and comes with command line search tool.
 package main
 
 import (
@@ -12,7 +16,6 @@ import (
 )
 
 func init() {
-	flag.Set("v", "2")
 	flag.Set("logtostderr", "true")
 }
 
@@ -22,13 +25,13 @@ func main() {
 	defer log.Flush()
 	flag.Parse()
 
-	c := crawl.New()
-	c.SetOptions(&crawl.Options{
-		MaxRequestsPerMinute: *maxReqs,
+	c := crawl.New(&crawl.Options{
+		MaxRequestsPerSecond: *maxReqs,
 		QueueCapacity:        100000,
+		Verbose:              false,
 	})
 
-	spider := new(Spider)
+	spider := new(imdbSpider)
 	c.Handler(Entity, spider.Entity)
 	c.Handler(List, spider.List)
 
@@ -45,13 +48,16 @@ func main() {
 }
 
 var (
+	// Entity - Movie entity.
 	Entity = "entity"
-	List   = "list"
+
+	// List - Movies list.
+	List = "list"
 )
 
-type Spider int
+type imdbSpider int
 
-func (spider *Spider) List(ctx context.Context, c *crawl.Crawl, resp *crawl.Response) (err error) {
+func (spider *imdbSpider) List(ctx context.Context, c *crawl.Crawl, resp *crawl.Response) (err error) {
 	resp.Query().Find("table.chart td.titleColumn a").Each(func(_ int, link *goquery.Selection) {
 		href, _ := link.Attr("href")
 		c.Schedule(&crawl.Request{
@@ -63,11 +69,10 @@ func (spider *Spider) List(ctx context.Context, c *crawl.Crawl, resp *crawl.Resp
 
 	return
 }
-
-func (spider *Spider) Entity(ctx context.Context, c *crawl.Crawl, resp *crawl.Response) (err error) {
+func (spider *imdbSpider) Entity(ctx context.Context, c *crawl.Crawl, resp *crawl.Response) (err error) {
 
 	log.Infof(
-		"Movie: %s (%s)",
+		"Movie: title=%s year=%s",
 		strings.TrimSpace(resp.Query().Find("h1.header span[itemprop=name]:nth-of-type(1)").Text()),
 		strings.TrimSpace(resp.Query().Find("h1.header span a").Text()),
 	)
