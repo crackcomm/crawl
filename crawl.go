@@ -16,7 +16,8 @@ import (
 type Options struct {
 	MaxRequestsPerMinute int
 	MaxRequestsPerSecond int
-	QueueCapacity        int // capacity of queue channel
+	QueueCapacity        int  // capacity of queue channel
+	Verbose              bool // log requests to console
 }
 
 // Crawl - Crawl structure.
@@ -62,7 +63,8 @@ var DefaultOptions = &Options{
 // When it's changed Queue should be remade.
 // By default crawl is created with DefaultOptions
 // If you want to change options set crawl.SetOptions() method.
-func New() (crawl *Crawl) {
+// Only one opts is accepted, rest is ignored.
+func New(opts ...*Options) (crawl *Crawl) {
 	c := &http.Client{
 		Transport: http.DefaultTransport,
 	}
@@ -75,10 +77,11 @@ func New() (crawl *Crawl) {
 		closeCh:  make(chan bool, 1),
 		doneCh:   make(chan bool, 1),
 	}
-	crawl.SetOptions(&Options{
-		MaxRequestsPerSecond: DefaultOptions.MaxRequestsPerSecond,
-		QueueCapacity:        DefaultOptions.QueueCapacity,
-	})
+	if len(opts) == 0 {
+		crawl.SetOptions(DefaultOptions)
+	} else {
+		crawl.SetOptions(opts[0])
+	}
 	return
 }
 
@@ -162,7 +165,9 @@ func (crawl *Crawl) Execute(req *Request) (resp *Response, err error) {
 		}
 	}
 
-	log.V(2).Infof("%s %s %s - %v", req.GetMethod(), resp.GetStatus(), resp.GetURL(), req.Callbacks)
+	if crawl.Verbose {
+		log.Infof("%s %s %s - %v", req.GetMethod(), resp.GetStatus(), resp.GetURL(), req.Callbacks)
+	}
 
 	return
 }
