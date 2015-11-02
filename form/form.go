@@ -18,8 +18,13 @@ type Form struct {
 }
 
 // New - Creates new form.
-func New() (form *Form) {
-	return &Form{values: make(map[string]string)}
+// Page argument is a list because it's optional - only first argument is used.
+func New(page ...*crawl.Response) (form *Form) {
+	form = &Form{values: make(map[string]string)}
+	if len(page) >= 1 {
+		form.SetPage(page[0])
+	}
+	return
 }
 
 // GetAction - Gets form action.
