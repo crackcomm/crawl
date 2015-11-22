@@ -6,42 +6,35 @@ package main
 
 import (
 	"flag"
+	"log"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/crackcomm/crawl"
 	"golang.org/x/net/context"
-
-	log "github.com/golang/glog"
 )
-
-func init() {
-	flag.Set("logtostderr", "true")
-}
 
 var maxReqs = flag.Int("max-reqs", 600, "Max requests per second")
 
 func main() {
-	defer log.Flush()
 	flag.Parse()
 
 	c := crawl.New(&crawl.Options{
 		MaxRequestsPerSecond: *maxReqs,
 		QueueCapacity:        100000,
-		Verbose:              false,
 	})
 
-	spider := new(imdbSpider)
+	spider := &imdbSpider{Crawl: c}
 	c.Handler(Entity, spider.Entity)
 	c.Handler(List, spider.List)
 
 	// Add first request
-	c.Schedule(&crawl.Request{
+	spider.Crawl.Schedule(&crawl.Request{
 		URL:       "http://www.imdb.com/chart/top",
 		Callbacks: crawl.Callbacks(List),
 	})
 
-	log.Info("Starting crawl")
+	log.Print("Starting crawl")
 	if err := c.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -55,12 +48,14 @@ var (
 	List = "list"
 )
 
-type imdbSpider int
+type imdbSpider struct {
+	*crawl.Crawl
+}
 
-func (spider *imdbSpider) List(ctx context.Context, c *crawl.Crawl, resp *crawl.Response) (err error) {
+func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err error) {
 	resp.Query().Find("table.chart td.titleColumn a").Each(func(_ int, link *goquery.Selection) {
 		href, _ := link.Attr("href")
-		c.Schedule(&crawl.Request{
+		spider.Crawl.Schedule(&crawl.Request{
 			URL:       href,
 			Source:    resp,
 			Callbacks: crawl.Callbacks(Entity),
@@ -69,9 +64,9 @@ func (spider *imdbSpider) List(ctx context.Context, c *crawl.Crawl, resp *crawl.
 
 	return
 }
-func (spider *imdbSpider) Entity(ctx context.Context, c *crawl.Crawl, resp *crawl.Response) (err error) {
+func (spider *imdbSpider) Entity(ctx context.Context, resp *crawl.Response) (err error) {
 
-	log.Infof(
+	log.Printf(
 		"Movie: title=%s year=%s",
 		strings.TrimSpace(resp.Query().Find("h1.header span[itemprop=name]:nth-of-type(1)").Text()),
 		strings.TrimSpace(resp.Query().Find("h1.header span a").Text()),

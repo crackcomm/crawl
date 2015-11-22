@@ -2,22 +2,22 @@ package crawl
 
 import (
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"sync"
 	"time"
 
 	"golang.org/x/net/context"
-
-	log "github.com/golang/glog"
 )
 
 // Options - Crawl options.
 type Options struct {
 	MaxRequestsPerMinute int
 	MaxRequestsPerSecond int
-	QueueCapacity        int  // capacity of queue channel
-	Verbose              bool // log requests to console
+
+	QueueCapacity    int // capacity of queue channel
+	QueueConcurrency int
 }
 
 // Crawl - Crawl structure.
@@ -49,13 +49,14 @@ type Crawl struct {
 }
 
 // Handler - Crawl handler.
-type Handler func(context.Context, *Crawl, *Response) error
+type Handler func(context.Context, *Response) error
 
 // DefaultOptions - Crawl default options.
 // They are used when a new crawl is created.
 var DefaultOptions = &Options{
 	MaxRequestsPerSecond: 500,
 	QueueCapacity:        100000,
+	QueueConcurrency:     100,
 }
 
 // New - Creates new crawl.
@@ -89,7 +90,16 @@ func New(opts ...*Options) (crawl *Crawl) {
 // If QueueCapacity option is changed, it creates a new Queue.
 func (crawl *Crawl) SetOptions(options *Options) {
 	if options == nil {
-		return
+		options = new(Options)
+	}
+	if options.MaxRequestsPerSecond == 0 {
+		options.MaxRequestsPerSecond = DefaultOptions.MaxRequestsPerSecond
+	}
+	if options.QueueCapacity == 0 {
+		options.QueueCapacity = DefaultOptions.QueueCapacity
+	}
+	if options.QueueConcurrency == 0 {
+		options.QueueConcurrency = DefaultOptions.QueueConcurrency
 	}
 
 	// Compare queue capacity settings
@@ -155,18 +165,14 @@ func (crawl *Crawl) Execute(req *Request) (resp *Response, err error) {
 	for _, cb := range req.Callbacks {
 		if handlers := crawl.GetHandlers(cb); len(handlers) >= 1 {
 			for _, handler := range handlers {
-				err = handler(req.Context, crawl, resp)
+				err = handler(req.Context, resp)
 				if err != nil {
 					return
 				}
 			}
 		} else {
-			log.Warningf("Handlers for %v was not found", cb)
+			return nil, fmt.Errorf("Handlers for %v was not found", cb)
 		}
-	}
-
-	if crawl.Verbose {
-		log.Infof("%s %s %s - %v", req.GetMethod(), resp.GetStatus(), resp.GetURL(), req.Callbacks)
 	}
 
 	return
@@ -178,6 +184,33 @@ func (crawl *Crawl) Start() (err error) {
 		crawl.doneCh <- true
 	}()
 
+	work := make(chan *Request, crawl.Options.QueueConcurrency)
+
+	var workers []chan chan bool
+	for index := 0; index < crawl.Options.QueueConcurrency; index++ {
+		closeChan := crawl.startWorker(work)
+		workers = append(workers, closeChan)
+	}
+
+	err = crawl.startLoop(work, workers)
+	if err != nil {
+		return
+	}
+
+	for _, closeChan := range workers {
+		done := make(chan bool, 1)
+		closeChan <- done
+		<-done
+	}
+
+	return
+}
+
+// Start scheduling requests
+// until we have something to do.
+// Also wait for new requests if some
+// are already executing in background.
+func (crawl *Crawl) startLoop(work chan *Request, workers []chan chan bool) (err error) {
 	// Ticker for request scheduling
 	// it ticks every (second / max request per second)
 	// making it schedule maximum (max requests per second)
@@ -190,10 +223,6 @@ func (crawl *Crawl) Start() (err error) {
 		return errors.New("MaxRequestsPerMinute or MaxRequestsPerMinute must be set")
 	}
 
-	// Start scheduling requests
-	// until we have something to do.
-	// Also wait for new requests if some
-	// are already executing in background.
 	for crawl.Queue.Continue() {
 		if tick != nil {
 			<-tick
@@ -208,7 +237,7 @@ func (crawl *Crawl) Start() (err error) {
 
 		// Get request from queue and execute it
 		if request, ok := crawl.Queue.Get(); ok {
-			go crawl.executeRequest(request)
+			work <- request
 		} else {
 			return
 		}
@@ -216,13 +245,21 @@ func (crawl *Crawl) Start() (err error) {
 	return
 }
 
-// executeRequest - Sends request, reads response
-// and executes proper handlers.
-func (crawl *Crawl) executeRequest(req *Request) {
-	if _, err := crawl.Execute(req); err != nil {
-		log.Warningf("ERR: %v on %s", err, req.String())
-	}
-	crawl.Queue.Done()
+func (crawl *Crawl) startWorker(work chan *Request) (closeChan chan chan bool) {
+	closeChan = make(chan chan bool, 1)
+	go func() {
+		for {
+			select {
+			case req := <-work:
+				crawl.Execute(req)
+				crawl.Queue.Done()
+			case done := <-closeChan:
+				done <- true
+				return
+			}
+		}
+	}()
+	return
 }
 
 // Schedule - Schedules request for future execution.
