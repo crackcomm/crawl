@@ -1,24 +1,13 @@
 package crawl
 
 import (
-	"errors"
 	"fmt"
 	"net/http"
 	"net/http/cookiejar"
-	"sync"
 	"time"
 
 	"golang.org/x/net/context"
 )
-
-// Options - Crawl options.
-type Options struct {
-	MaxRequestsPerMinute int
-	MaxRequestsPerSecond int
-
-	QueueCapacity    int // capacity of queue channel
-	QueueConcurrency int
-}
 
 // Crawl - Crawl structure.
 // It keeps track of one-client crawl.
@@ -35,31 +24,28 @@ type Options struct {
 //
 // Crawl can be Freeze()-ed when it's required.
 type Crawl struct {
-	*Options
+	Errors chan *Error // this channel should be emptied by You
 	Queue
+	*Freezer
 	*http.Client
 
-	mutex    *sync.RWMutex
 	handlers map[interface{}][]Handler
 
 	closeCh chan bool // close channel
 	doneCh  chan bool // done channel
 
 	headers map[string]string // Default HTTP headers
+	opts    *options
+}
 
-	*Freezer
+// Error - Crawl error.
+type Error struct {
+	*Request
+	Error error
 }
 
 // Handler - Crawl handler.
 type Handler func(context.Context, *Response) error
-
-// DefaultOptions - Crawl default options.
-// They are used when a new crawl is created.
-var DefaultOptions = &Options{
-	MaxRequestsPerSecond: 500,
-	QueueCapacity:        100000,
-	QueueConcurrency:     100,
-}
 
 // New - Creates new crawl.
 // Options are set permamently on Queue (QueueCapacity).
@@ -67,53 +53,25 @@ var DefaultOptions = &Options{
 // By default crawl is created with DefaultOptions
 // If you want to change options set crawl.SetOptions() method.
 // Only one opts is accepted, rest is ignored.
-func New(opts ...*Options) (crawl *Crawl) {
+func New(opts ...Option) (crawl *Crawl) {
 	c := &http.Client{
 		Transport: http.DefaultTransport,
 	}
 	c.Jar, _ = cookiejar.New(nil)
 
 	crawl = &Crawl{
+		Freezer:  NewFreezer(1000),
+		Errors:   make(chan *Error, 1000),
 		Client:   c,
-		mutex:    new(sync.RWMutex),
 		handlers: make(map[interface{}][]Handler),
 		closeCh:  make(chan bool, 1),
 		doneCh:   make(chan bool, 1),
+		opts:     &options{concurrency: 1},
 	}
-	if len(opts) == 0 {
-		crawl.SetOptions(DefaultOptions)
-	} else {
-		crawl.SetOptions(opts[0])
+	for _, opt := range opts {
+		opt(crawl)
 	}
 	return
-}
-
-// SetOptions - Sets crawl options.
-// If QueueCapacity option is changed, it creates a new Queue.
-func (crawl *Crawl) SetOptions(options *Options) {
-	if options == nil {
-		options = new(Options)
-	}
-	if options.MaxRequestsPerSecond == 0 {
-		options.MaxRequestsPerSecond = DefaultOptions.MaxRequestsPerSecond
-	}
-	if options.QueueCapacity == 0 {
-		options.QueueCapacity = DefaultOptions.QueueCapacity
-	}
-	if options.QueueConcurrency == 0 {
-		options.QueueConcurrency = DefaultOptions.QueueConcurrency
-	}
-
-	// Compare queue capacity settings
-	// Create new queue if settings are changed
-	// Or current settings are empty
-	if current := crawl.Options; current == nil || current.QueueCapacity < options.QueueCapacity {
-		crawl.Freezer = NewFreezer(options.QueueCapacity)
-		crawl.Queue = NewQueue(options.QueueCapacity)
-	}
-
-	// Set options
-	crawl.Options = options
 }
 
 // Do - Makes http.Request using crawl.Client
@@ -187,10 +145,10 @@ func (crawl *Crawl) Start() (err error) {
 		crawl.doneCh <- true
 	}()
 
-	work := make(chan *Request, crawl.Options.QueueConcurrency)
+	work := make(chan *Request, crawl.opts.concurrency)
 
 	var workers []chan chan bool
-	for index := 0; index < crawl.Options.QueueConcurrency; index++ {
+	for index := 0; index < crawl.opts.concurrency; index++ {
 		closeChan := crawl.startWorker(work)
 		workers = append(workers, closeChan)
 	}
@@ -219,15 +177,12 @@ func (crawl *Crawl) startLoop(work chan *Request, workers []chan chan bool) (err
 	// making it schedule maximum (max requests per second)
 	// of requests per second
 	var tick <-chan time.Time
-	if crawl.Options.MaxRequestsPerMinute > 0 {
-	} else if crawl.Options.MaxRequestsPerSecond > 0 {
-		tick = time.Tick(time.Second / time.Duration(crawl.Options.MaxRequestsPerSecond))
-	} else {
-		return errors.New("MaxRequestsPerMinute or MaxRequestsPerMinute must be set")
+	if crawl.opts.maxReqsPerSecond > 0 {
+		tick = time.Tick(time.Second / time.Duration(crawl.opts.maxReqsPerSecond))
 	}
 
 	for crawl.Queue.Continue() {
-		if tick != nil {
+		if crawl.opts.maxReqsPerSecond > 0 {
 			<-tick
 		}
 
@@ -259,7 +214,9 @@ func (crawl *Crawl) startWorker(work chan *Request) (closeChan chan chan bool) {
 		for {
 			select {
 			case req := <-work:
-				crawl.Execute(req)
+				if _, err := crawl.Execute(req); err != nil {
+					crawl.Errors <- &Error{Error: err, Request: req}
+				}
 				crawl.Queue.Done()
 			case done := <-closeChan:
 				done <- true
@@ -280,15 +237,11 @@ func (crawl *Crawl) Schedule(req *Request) {
 // Handler - Adds new crawl handler.
 // Handler is a callback referenced by name.
 func (crawl *Crawl) Handler(name interface{}, h Handler) {
-	crawl.mutex.Lock()
 	crawl.handlers[name] = append(crawl.handlers[name], h)
-	crawl.mutex.Unlock()
 }
 
 // GetHandlers - Gets crawl handlers by name.
 func (crawl *Crawl) GetHandlers(name interface{}) []Handler {
-	crawl.mutex.RLock()
-	defer crawl.mutex.RUnlock()
 	return crawl.handlers[name]
 }
 
@@ -308,5 +261,6 @@ func (crawl *Crawl) Done() (done <-chan bool) {
 func (crawl *Crawl) Close() (err error) {
 	crawl.Queue.Close()
 	crawl.closeCh <- true
+	close(crawl.Errors)
 	return
 }

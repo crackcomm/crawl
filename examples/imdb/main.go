@@ -6,6 +6,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"log"
 	"strings"
 
@@ -19,22 +20,30 @@ var maxReqs = flag.Int("max-reqs", 600, "Max requests per second")
 func main() {
 	flag.Parse()
 
-	c := crawl.New(&crawl.Options{
-		MaxRequestsPerSecond: *maxReqs,
-		QueueCapacity:        100000,
-	})
+	c := crawl.New(
+		crawl.WithQueue(crawl.NewQueue(1000)),
+		crawl.WithConcurrency(200),
+	)
 
 	spider := &imdbSpider{Crawl: c}
+
 	c.Handler(Entity, spider.Entity)
 	c.Handler(List, spider.List)
-
-	// Add first request
-	spider.Crawl.Schedule(&crawl.Request{
+	c.Schedule(&crawl.Request{
 		URL:       "http://www.imdb.com/chart/top",
 		Callbacks: crawl.Callbacks(List),
 	})
 
 	log.Print("Starting crawl")
+
+	// Its up to You how you want to handle errors
+	// You can reschedule request or ignore that
+	go func() {
+		for err := range c.Errors {
+			log.Printf("Error: %v while requesting %q", err.Error, err.Request.String())
+		}
+	}()
+
 	if err := c.Start(); err != nil {
 		log.Fatal(err)
 	}
@@ -53,6 +62,10 @@ type imdbSpider struct {
 }
 
 func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err error) {
+	if err := spider.checkError(ctx, resp); err != nil {
+		return err
+	}
+
 	resp.Query().Find("table.chart td.titleColumn a").Each(func(_ int, link *goquery.Selection) {
 		href, _ := link.Attr("href")
 		spider.Crawl.Schedule(&crawl.Request{
@@ -65,12 +78,21 @@ func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err e
 	return
 }
 func (spider *imdbSpider) Entity(ctx context.Context, resp *crawl.Response) (err error) {
+	if err := spider.checkError(ctx, resp); err != nil {
+		return err
+	}
 
-	log.Printf(
-		"Movie: title=%s year=%s",
-		strings.TrimSpace(resp.Query().Find("h1.header span[itemprop=name]:nth-of-type(1)").Text()),
-		strings.TrimSpace(resp.Query().Find("h1.header span a").Text()),
-	)
+	title := strings.TrimSpace(resp.Query().Find("h1.header span[itemprop=name]:nth-of-type(1)").Text())
+	year := strings.TrimSpace(resp.Query().Find("h1.header span a").Text())
+	log.Printf("Response: status=%q title=%q year=%s", resp.GetStatus(), title, year)
 
+	return
+}
+
+func (spider *imdbSpider) checkError(ctx context.Context, resp *crawl.Response) (err error) {
+	doh := strings.TrimSpace(resp.Query().Find("h1").Text())
+	if doh == "D'oh!" {
+		return fmt.Errorf("IMDB returned: %q", strings.TrimSpace(resp.Query().Find("body").Text()))
+	}
 	return
 }
