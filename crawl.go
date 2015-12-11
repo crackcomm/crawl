@@ -36,7 +36,7 @@ type Options struct {
 // Crawl can be Freeze()-ed when it's required.
 type Crawl struct {
 	*Options
-	*Queue
+	Queue
 	*http.Client
 
 	mutex    *sync.RWMutex
@@ -46,6 +46,8 @@ type Crawl struct {
 	doneCh  chan bool // done channel
 
 	headers map[string]string // Default HTTP headers
+
+	*Freezer
 }
 
 // Handler - Crawl handler.
@@ -106,6 +108,7 @@ func (crawl *Crawl) SetOptions(options *Options) {
 	// Create new queue if settings are changed
 	// Or current settings are empty
 	if current := crawl.Options; current == nil || current.QueueCapacity < options.QueueCapacity {
+		crawl.Freezer = NewFreezer(options.QueueCapacity)
 		crawl.Queue = NewQueue(options.QueueCapacity)
 	}
 
@@ -235,11 +238,16 @@ func (crawl *Crawl) startLoop(work chan *Request, workers []chan chan bool) (err
 		default:
 		}
 
+		// Wait if freezed
+		crawl.Freezer.Wait()
+
 		// Get request from queue and execute it
-		if request, ok := crawl.Queue.Get(); ok {
+		if request, err := crawl.Queue.Get(); err == nil {
 			work <- request
+		} else if err == ErrQueueClosed {
+			return nil
 		} else {
-			return
+			return err
 		}
 	}
 	return
