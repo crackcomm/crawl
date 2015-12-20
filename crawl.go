@@ -15,7 +15,7 @@ import (
 // Requests are scheduled in queue (look QueueCapacity option).
 // Then depending on MaxRequestsPerSecond options they are executed.
 // Each request should contain at least one Callback.
-// Which is a interface{} key to Handler.
+// Which is a string key to Handler.
 //
 // HTTP Client proxy can be set in environment variable:
 //
@@ -30,7 +30,7 @@ type Crawl struct {
 	*Freezer
 	*http.Client
 
-	handlers map[interface{}][]Handler
+	handlers map[string][]Handler
 
 	closeCh chan bool // close channel
 	doneCh  chan bool // done channel
@@ -64,7 +64,7 @@ func New(opts ...Option) (crawl *Crawl) {
 		Freezer:  NewFreezer(1000),
 		Errors:   make(chan *Error, 1000),
 		Client:   c,
-		handlers: make(map[interface{}][]Handler),
+		handlers: make(map[string][]Handler),
 		closeCh:  make(chan bool, 1),
 		doneCh:   make(chan bool, 1),
 		opts:     &options{concurrency: 1},
@@ -236,12 +236,12 @@ func (crawl *Crawl) Schedule(job Job) {
 
 // Handler - Adds new crawl handler.
 // Handler is a callback referenced by name.
-func (crawl *Crawl) Handler(name interface{}, h Handler) {
+func (crawl *Crawl) Handler(name string, h Handler) {
 	crawl.handlers[name] = append(crawl.handlers[name], h)
 }
 
 // GetHandlers - Gets crawl handlers by name.
-func (crawl *Crawl) GetHandlers(name interface{}) []Handler {
+func (crawl *Crawl) GetHandlers(name string) []Handler {
 	return crawl.handlers[name]
 }
 

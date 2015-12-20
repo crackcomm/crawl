@@ -25,13 +25,13 @@ type Request struct {
 	Referer   string            `json:"referer,omitempty"`
 	Form      map[string]string `json:"form,omitempty"`
 	Raw       bool              `json:"raw,omitempty"`
-	Callbacks []interface{}     `json:"callbacks,omitempty"`
+	Callbacks []string          `json:"callbacks,omitempty"`
 	Source    *Response         `json:"-"`
 	Context   context.Context   `json:"-"`
 }
 
 // Callbacks - Helper for creating list of interfaces.
-func Callbacks(v ...interface{}) []interface{} {
+func Callbacks(v ...string) []string {
 	return v
 }
 
