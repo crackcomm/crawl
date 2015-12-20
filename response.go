@@ -9,7 +9,6 @@ import (
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
-	"github.com/crackcomm/crawl"
 )
 
 // Response - Crawl http response.
@@ -23,7 +22,7 @@ type Response struct {
 }
 
 // Text - Finds node in response and returns text.
-func Text(resp *crawl.Response, selector string) string {
+func Text(resp *Response, selector string) string {
 	return strings.TrimSpace(resp.Query().Find(selector).Text())
 }
 
