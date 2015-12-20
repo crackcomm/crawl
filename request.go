@@ -26,6 +26,7 @@ type Request struct {
 	Form      map[string]string `json:"form,omitempty"`
 	Raw       bool              `json:"raw,omitempty"`
 	Callbacks []string          `json:"callbacks,omitempty"`
+	Metadata  map[string]string `json:"metadata,omitempty"`
 	Source    *Response         `json:"-"`
 	Context   context.Context   `json:"-"`
 }
