@@ -1,23 +1,23 @@
 package crawl
 
+// Job - Crawl job interface.
+type Job interface {
+	// Request - Returns crawl job.
+	Request() *Request
+
+	// Done - Sets job as done.
+	Done()
+}
+
 // Queue - Requests queue.
 type Queue interface {
-	// Schedule - Schedules a Request.
-	Schedule(req *Request) error
-
-	// Continue - Returns true if there is at least one job in progress
-	// or there is something in the queue. Otherwise returns false.
-	// It may return true always for example when it's a NSQ queue.
-	Continue() bool
-
 	// Get - Gets request from Queue channel.
-	// Processing counter is incremented when request exits the queue.
-	// It should be then decremented by using Done() method.
-	Get() (req *Request, err error)
+	// Returns io.EOF if queue is done/closed.
+	Get() (job Job, err error)
 
-	// Done - Increments done counter and decrements processing counter.
-	// Closes queue if Continue() returns false.
-	Done()
+	// Schedule - Schedules a Request.
+	// Returns io.ErrClosedPipe if queue is closed.
+	Schedule(job Job) error
 
 	// Close - Closes the queue.
 	Close() error

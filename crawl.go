@@ -2,6 +2,7 @@ package crawl
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"time"
@@ -145,7 +146,7 @@ func (crawl *Crawl) Start() (err error) {
 		crawl.doneCh <- true
 	}()
 
-	work := make(chan *Request, crawl.opts.concurrency)
+	work := make(chan Job, crawl.opts.concurrency)
 
 	var workers []chan chan bool
 	for index := 0; index < crawl.opts.concurrency; index++ {
@@ -171,7 +172,7 @@ func (crawl *Crawl) Start() (err error) {
 // until we have something to do.
 // Also wait for new requests if some
 // are already executing in background.
-func (crawl *Crawl) startLoop(work chan *Request, workers []chan chan bool) (err error) {
+func (crawl *Crawl) startLoop(work chan Job, workers []chan chan bool) (err error) {
 	// Ticker for request scheduling
 	// it ticks every (second / max request per second)
 	// making it schedule maximum (max requests per second)
@@ -181,7 +182,7 @@ func (crawl *Crawl) startLoop(work chan *Request, workers []chan chan bool) (err
 		tick = time.Tick(time.Second / time.Duration(crawl.opts.maxReqsPerSecond))
 	}
 
-	for crawl.Queue.Continue() {
+	for {
 		if crawl.opts.maxReqsPerSecond > 0 {
 			<-tick
 		}
@@ -197,27 +198,26 @@ func (crawl *Crawl) startLoop(work chan *Request, workers []chan chan bool) (err
 		crawl.Freezer.Wait()
 
 		// Get request from queue and execute it
-		if request, err := crawl.Queue.Get(); err == nil {
-			work <- request
-		} else if err == ErrQueueClosed {
+		if job, err := crawl.Queue.Get(); err == nil {
+			work <- job
+		} else if err == io.EOF {
 			return nil
 		} else {
 			return err
 		}
 	}
-	return
 }
 
-func (crawl *Crawl) startWorker(work chan *Request) (closeChan chan chan bool) {
+func (crawl *Crawl) startWorker(work chan Job) (closeChan chan chan bool) {
 	closeChan = make(chan chan bool, 1)
 	go func() {
 		for {
 			select {
-			case req := <-work:
-				if _, err := crawl.Execute(req); err != nil {
-					crawl.Errors <- &Error{Error: err, Request: req}
+			case job := <-work:
+				if _, err := crawl.Execute(job.Request()); err != nil {
+					crawl.Errors <- &Error{Error: err, Request: job.Request()}
 				}
-				crawl.Queue.Done()
+				job.Done()
 			case done := <-closeChan:
 				done <- true
 				return

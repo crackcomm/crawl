@@ -115,7 +115,7 @@ func (req *Request) GetURL() (u *url.URL, err error) {
 	if req.Referer != "" {
 		ref, err := url.Parse(req.Referer)
 		if err != nil {
-			return
+			return nil, err
 		}
 		u = ref.ResolveReference(u)
 	} else if src := req.Source; src != nil {
@@ -128,3 +128,9 @@ func (req *Request) GetURL() (u *url.URL, err error) {
 func (req *Request) String() string {
 	return fmt.Sprintf("%s %s", req.GetMethod(), req.URL)
 }
+
+// Request - ONLY FOR JOB INTERFACE COMPATIBILITY.
+func (req *Request) Request() *Request { return req }
+
+// Done - ONLY FOR JOB INTERFACE COMPATIBILITY.
+func (req *Request) Done() {}
