@@ -20,12 +20,14 @@ import (
 // and with form encoded body.
 // Multipart form is not implemented.
 type Request struct {
-	Method, URL string
-	Raw         bool
-	Source      *Response
-	Callbacks   []interface{}
-	Form        map[string]string
-	Context     context.Context
+	URL       string            `json:"url,omitempty"`
+	Method    string            `json:"method,omitempty"`
+	Referer   string            `json:"referer,omitempty"`
+	Form      map[string]string `json:"form,omitempty"`
+	Raw       bool              `json:"raw,omitempty"`
+	Callbacks []interface{}     `json:"callbacks,omitempty"`
+	Source    *Response         `json:"-"`
+	Context   context.Context   `json:"-"`
 }
 
 // Callbacks - Helper for creating list of interfaces.
@@ -49,7 +51,9 @@ func (req *Request) HTTPRequest() (r *http.Request, err error) {
 	}
 
 	// Set referer if any
-	if req.Source != nil {
+	if req.Referer != "" {
+		r.Header.Set("Referer", req.Referer)
+	} else if req.Source != nil {
 		r.Header.Set("Referer", req.Source.GetURL().String())
 	}
 
@@ -108,7 +112,13 @@ func (req *Request) GetURL() (u *url.URL, err error) {
 	if err != nil {
 		return
 	}
-	if src := req.Source; src != nil {
+	if req.Referer != "" {
+		ref, err := url.Parse(req.Referer)
+		if err != nil {
+			return
+		}
+		u = ref.ResolveReference(u)
+	} else if src := req.Source; src != nil {
 		u = src.GetURL().ResolveReference(u)
 	}
 	return
