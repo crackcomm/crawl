@@ -8,7 +8,6 @@ import (
 	"flag"
 	"fmt"
 	"log"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 	"github.com/crackcomm/crawl"
@@ -91,9 +90,9 @@ func (spider *imdbSpider) Entity(ctx context.Context, resp *crawl.Response) (err
 }
 
 func (spider *imdbSpider) checkError(ctx context.Context, resp *crawl.Response) (err error) {
-	doh := strings.TrimSpace(resp.Query().Find("h1").Text())
+	doh := crawl.Text("h1")
 	if doh == "D'oh!" {
-		return fmt.Errorf("IMDB returned: %q", strings.TrimSpace(resp.Query().Find("body").Text()))
+		return fmt.Errorf("IMDB returned: %q", crawl.Text("body"))
 	}
 	return
 }
