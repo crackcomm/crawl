@@ -90,9 +90,9 @@ func (spider *imdbSpider) Entity(ctx context.Context, resp *crawl.Response) (err
 }
 
 func (spider *imdbSpider) checkError(ctx context.Context, resp *crawl.Response) (err error) {
-	doh := crawl.Text("h1")
+	doh := crawl.Text(resp, "h1")
 	if doh == "D'oh!" {
-		return fmt.Errorf("IMDB returned: %q", crawl.Text("body"))
+		return fmt.Errorf("IMDB returned: %q", crawl.Text(resp, "body"))
 	}
 	return
 }
