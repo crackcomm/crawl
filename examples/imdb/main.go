@@ -77,13 +77,14 @@ func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err e
 
 	return
 }
+
 func (spider *imdbSpider) Entity(ctx context.Context, resp *crawl.Response) (err error) {
 	if err := spider.checkError(ctx, resp); err != nil {
 		return err
 	}
 
-	title := strings.TrimSpace(resp.Query().Find("h1.header span[itemprop=name]:nth-of-type(1)").Text())
-	year := strings.TrimSpace(resp.Query().Find("h1.header span a").Text())
+	title := crawl.Text(resp, "h1.header span[itemprop=name]:nth-of-type(1)")
+	year := crawl.Text(resp, "h1.header span a")
 	log.Printf("Response: status=%q title=%q year=%s", resp.GetStatus(), title, year)
 
 	return
