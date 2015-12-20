@@ -129,8 +129,8 @@ func (req *Request) String() string {
 	return fmt.Sprintf("%s %s", req.GetMethod(), req.URL)
 }
 
-// Request - ONLY FOR JOB INTERFACE COMPATIBILITY.
+// Request - Returns self.
 func (req *Request) Request() *Request { return req }
 
-// Done - ONLY FOR JOB INTERFACE COMPATIBILITY.
+// Done - Does nothing.
 func (req *Request) Done() {}
