@@ -230,8 +230,8 @@ func (crawl *Crawl) startWorker(work chan Job) (closeChan chan chan bool) {
 // Schedule - Schedules request for future execution.
 // Request will be executed as soon as possible.
 // Execution of requests is limited by MaxRequestsPerSecond.
-func (crawl *Crawl) Schedule(req *Request) {
-	crawl.Queue.Schedule(req)
+func (crawl *Crawl) Schedule(job Job) {
+	crawl.Queue.Schedule(job)
 }
 
 // Handler - Adds new crawl handler.
