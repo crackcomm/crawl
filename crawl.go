@@ -55,15 +55,15 @@ type Handler func(context.Context, *Response) error
 // If you want to change options set crawl.SetOptions() method.
 // Only one opts is accepted, rest is ignored.
 func New(opts ...Option) (crawl *Crawl) {
-	c := &http.Client{
+	client := &http.Client{
 		Transport: http.DefaultTransport,
 	}
-	c.Jar, _ = cookiejar.New(nil)
+	client.Jar, _ = cookiejar.New(nil)
 
 	crawl = &Crawl{
 		Freezer:  NewFreezer(1000),
 		Errors:   make(chan *Error, 1000),
-		Client:   c,
+		Client:   client,
 		handlers: make(map[string][]Handler),
 		closeCh:  make(chan bool, 1),
 		doneCh:   make(chan bool, 1),
@@ -79,25 +79,25 @@ func New(opts ...Option) (crawl *Crawl) {
 // returns http.Response wrapped in Response structure.
 func (crawl *Crawl) Do(req *Request) (resp *Response, err error) {
 	// Get http.Request structure
-	rq, err := req.HTTPRequest()
+	httpreq, err := req.HTTPRequest()
 	if err != nil {
 		return
 	}
 
 	// Copy default headers
-	for k, v := range crawl.headers {
-		if _, has := rq.Header[k]; !has {
-			rq.Header.Set(k, v)
+	for name, value := range crawl.headers {
+		if _, has := httpreq.Header[name]; !has {
+			httpreq.Header.Set(name, value)
 		}
 	}
 
 	// Send request and read response
-	res, err := crawl.Client.Do(rq)
+	response, err := crawl.Client.Do(httpreq)
 	if err != nil {
 		return
 	}
 
-	return &Response{Response: res}, nil
+	return &Response{Response: response}, nil
 }
 
 // Execute - Makes a http request using crawl.Client.
