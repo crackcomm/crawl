@@ -6,8 +6,6 @@ Lightweight library for crawlers in Go.
 
 HTML parsing and extracting is done thanks to [goquery](https://godoc.org/github.com/PuerkitoBio/goquery/).
 
-Separate project for distributed crawls using nsq is developed in [crackcomm/nsq-crawler](https://github.com/crackcomm/nsq-crawler/).
-
 ## Usage
 
 Examples can be found in [examples](https://github.com/crackcomm/crawl/tree/master/examples)
