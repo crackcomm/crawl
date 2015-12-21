@@ -122,7 +122,7 @@ func listToMap(list []string) (result map[string]string, err error) {
 	for _, keyValue := range list {
 		i := strings.Index(keyValue, "=")
 		if i <= 0 {
-			return nil, fmt.Errorf("Form value %q is not valid", keyValue)
+			return nil, fmt.Errorf("%q is not valid", keyValue)
 		}
 		key := keyValue[:i-1]
 		value := keyValue[i:]
