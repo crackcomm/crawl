@@ -22,35 +22,29 @@ func New(spiders ...Spider) (app *cli.App) {
 		cli.StringFlag{
 			Name:   "requests-topic",
 			Value:  "crawl_requests",
-			Usage:  "crawl requests topic",
 			EnvVar: "REQUESTS_TOPIC",
 		},
 		cli.StringSliceFlag{
 			Name:   "nsqlookup-addr",
-			Usage:  "nsqlookup address",
 			EnvVar: "NSQLOOKUP_ADDR",
 		},
 		cli.StringSliceFlag{
 			Name:   "nsq-addr",
-			Usage:  "nsq address (at least one is required)",
 			EnvVar: "NSQ_ADDR",
 		},
 		cli.StringFlag{
 			Name:   "consumer-channel",
 			Value:  "consumer",
-			Usage:  "crawl requests consumer channel",
 			EnvVar: "CONSUMER_CHANNEL",
 		},
 		cli.StringFlag{
 			Name:   "producer-topic",
 			Value:  "crawl_results",
-			Usage:  "crawl results topic",
 			EnvVar: "PRODUCER_TOPIC",
 		},
 		cli.IntFlag{
 			Name:   "concurrency",
 			Value:  100,
-			Usage:  "crawler concurrency",
 			EnvVar: "CRAWL_CONCURRENCY",
 		},
 	}
