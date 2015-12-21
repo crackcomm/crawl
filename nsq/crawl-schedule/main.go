@@ -2,7 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
+	"os"
 	"strings"
 
 	"github.com/bitly/go-nsq"
@@ -51,17 +54,23 @@ func main() {
 			Usage: "crawl request referer",
 		},
 	}
-	app.Action = func(c *cli.Context) {
+	app.Before = func(c *cli.Context) error {
+		var errs []string
 		if len(c.StringSlice("nsq-addr")) == 0 {
-			glog.Fatalf("At least one --%s is required", "nsq-addr")
+			errs = append(errs, "At least one --nsq-addr is required")
 		}
 		if len(c.StringSlice("callback")) == 0 {
-			glog.Fatalf("At least one --callback is required")
+			errs = append(errs, "At least one --callback is required")
 		}
 		if len(c.Args()) != 1 {
-			glog.Fatalf("At least one url is required in arguments.")
+			errs = append(errs, "At least one url is required in arguments.")
 		}
-
+		if len(errs) != 0 {
+			return errors.New(strings.Join(errs, "\n"))
+		}
+		return nil
+	}
+	app.Action = func(c *cli.Context) {
 		form, err := listToMap(c.StringSlice("form-value"))
 		if err != nil {
 			glog.Fatalf("Form values error: %v", err)
@@ -101,6 +110,10 @@ func main() {
 		}
 
 		glog.Info("Request scheduled")
+	}
+
+	if err := app.Run(os.Args); err != nil {
+		log.Fatal(err)
 	}
 }
 
