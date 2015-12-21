@@ -27,10 +27,10 @@ func main() {
 			EnvVar: "NSQ_ADDR",
 		},
 		cli.StringFlag{
-			Name:   "requests-topic",
+			Name:   "nsq-topic",
 			Value:  "crawl_requests",
-			Usage:  "crawl requests topic",
-			EnvVar: "REQUESTS_TOPIC",
+			Usage:  "crawl requests nsq topic",
+			EnvVar: "NSQ_TOPIC",
 		},
 		cli.StringSliceFlag{
 			Name:  "form-value",
@@ -105,7 +105,7 @@ func main() {
 			glog.Fatalf("Error connecting to nsq: %v", err)
 		}
 
-		if err := producer.Publish(c.String("requests-topic"), body); err != nil {
+		if err := producer.Publish(c.String("nsq-topic"), body); err != nil {
 			glog.Fatalf("Publish error: %v", err)
 		}
 
