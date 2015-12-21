@@ -20,27 +20,20 @@ func New(spiders ...Spider) (app *cli.App) {
 	app.Usage = "nsq crawl consumer"
 	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name:   "requests-topic",
-			Value:  "crawl_requests",
-			EnvVar: "REQUESTS_TOPIC",
+			Name:   "topic",
+			EnvVar: "TOPIC",
 		},
-		cli.StringSliceFlag{
-			Name:   "nsqlookup-addr",
-			EnvVar: "NSQLOOKUP_ADDR",
+		cli.StringFlag{
+			Name:   "channel",
+			EnvVar: "CHANNEL",
 		},
 		cli.StringSliceFlag{
 			Name:   "nsq-addr",
 			EnvVar: "NSQ_ADDR",
 		},
-		cli.StringFlag{
-			Name:   "consumer-channel",
-			Value:  "consumer",
-			EnvVar: "CONSUMER_CHANNEL",
-		},
-		cli.StringFlag{
-			Name:   "producer-topic",
-			Value:  "crawl_results",
-			EnvVar: "PRODUCER_TOPIC",
+		cli.StringSliceFlag{
+			Name:   "nsqlookup-addr",
+			EnvVar: "NSQLOOKUP_ADDR",
 		},
 		cli.IntFlag{
 			Name:   "concurrency",
@@ -53,7 +46,7 @@ func New(spiders ...Spider) (app *cli.App) {
 			glog.Fatalf("At leat one --%s is required", "nsq-addr")
 		}
 
-		queue := crawl.NewNsqQueue(c.String("requests-topic"), c.String("consumer-channel"), c.Int("concurrency"))
+		queue := crawl.NewNsqQueue(c.String("topic"), c.String("channel"), c.Int("concurrency"))
 
 		nsqAddr := c.StringSlice("nsq-addr")[0]
 		if err := queue.Producer.Connect(nsqAddr); err != nil {
