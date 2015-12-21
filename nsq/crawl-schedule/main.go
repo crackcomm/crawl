@@ -124,8 +124,8 @@ func listToMap(list []string) (result map[string]string, err error) {
 		if i <= 0 {
 			return nil, fmt.Errorf("%q is not valid", keyValue)
 		}
-		key := keyValue[:i-1]
-		value := keyValue[i:]
+		key := keyValue[:i]
+		value := keyValue[i+1:]
 		result[key] = value
 	}
 	return
