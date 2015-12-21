@@ -81,6 +81,7 @@ func (crawl *crawl) Start() {
 	for i := 0; i < crawl.opts.concurrency; i++ {
 		wg.Add(1)
 		go func() {
+			defer wg.Done()
 			for {
 				job, err := crawl.queue.Get()
 				if err == io.EOF {
