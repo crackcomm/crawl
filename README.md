@@ -12,10 +12,3 @@ Separate project for distributed crawls using nsq is developed in [crackcomm/nsq
 
 Examples can be found in [examples](https://github.com/crackcomm/crawl/tree/master/examples)
 directory.
-
-## License
-
-
-                                 Apache License
-                           Version 2.0, January 2004
-                        http://www.apache.org/licenses/
