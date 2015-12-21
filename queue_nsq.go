@@ -1,6 +1,7 @@
 package crawl
 
 import (
+	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
 	"github.com/crackcomm/nsqueue/consumer"
@@ -49,7 +50,9 @@ func (queue *NsqQueue) Close() (err error) {
 func (queue *NsqQueue) nsqHandler(msg *consumer.Message) {
 	req := new(Request)
 	err := msg.ReadJSON(req)
+	glog.V(3).Infof("nsq json: %s", msg.Body)
 	if err != nil {
+		glog.V(3).Infof("nsq json (%s) error: %v", msg.Body, err)
 		msg.GiveUp()
 		return
 	}
