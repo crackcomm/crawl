@@ -55,16 +55,18 @@ func (queue *NsqQueue) nsqHandler(msg *consumer.Message) {
 	}
 
 	// Set nsq message in context
-	req.Context = consumer.WithMessage(context.Background(), msg)
+	ctx := consumer.WithMessage(context.Background(), msg)
 
 	// Schedule job in memory
-	queue.memq.Schedule(&nsqJob{msg: msg, req: req})
+	queue.memq.Schedule(&nsqJob{msg: msg, req: req, ctx: ctx})
 }
 
 type nsqJob struct {
 	msg *consumer.Message
 	req *Request
+	ctx context.Context
 }
 
-func (job *nsqJob) Done()             { job.msg.Success() }
-func (job *nsqJob) Request() *Request { return job.req }
+func (job *nsqJob) Context() context.Context { return job.ctx }
+func (job *nsqJob) Request() *Request        { return job.req }
+func (job *nsqJob) Done()                    { job.msg.Success() }

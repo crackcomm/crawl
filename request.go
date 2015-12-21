@@ -28,7 +28,6 @@ type Request struct {
 	Callbacks []string          `json:"callbacks,omitempty"`
 	Metadata  map[string]string `json:"metadata,omitempty"`
 	Source    *Response         `json:"-"`
-	Context   context.Context   `json:"-"`
 }
 
 // Callbacks - Helper for creating list of interfaces.
@@ -125,13 +124,17 @@ func (req *Request) GetURL() (u *url.URL, err error) {
 	return
 }
 
-// String -
+// String - Returns "{method} {url}" formatted string.
 func (req *Request) String() string {
 	return fmt.Sprintf("%s %s", req.GetMethod(), req.URL)
 }
 
-// Request - Returns self.
-func (req *Request) Request() *Request { return req }
+// reqJob - Structure to make Request+Context a Job interface.
+type reqJob struct {
+	req *Request
+	ctx context.Context
+}
 
-// Done - Does nothing.
-func (req *Request) Done() {}
+func (job *reqJob) Context() context.Context { return job.ctx }
+func (job *reqJob) Request() *Request        { return job.req }
+func (job *reqJob) Done()                    {}

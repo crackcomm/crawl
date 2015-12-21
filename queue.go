@@ -1,9 +1,14 @@
 package crawl
 
+import "golang.org/x/net/context"
+
 // Job - Crawl job interface.
 type Job interface {
 	// Request - Returns crawl job.
 	Request() *Request
+
+	// Context - Returns job context.
+	Context() context.Context
 
 	// Done - Sets job as done.
 	Done()

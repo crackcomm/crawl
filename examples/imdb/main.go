@@ -7,12 +7,14 @@ package main
 import (
 	"log"
 
+	"golang.org/x/net/context"
+
 	"github.com/crackcomm/crawl"
 
 	imdb "github.com/crackcomm/crawl/examples/imdb/spider"
 )
 
-var spiders = []func(*crawl.Crawl){
+var spiders = []func(crawl.Crawler){
 	imdb.Register,
 }
 
@@ -26,8 +28,8 @@ func main() {
 		spider(c)
 	}
 
-	c.Schedule(&crawl.Request{
-		URL:       "http://www.imdb.com/chart/top",
+	c.Schedule(context.Background(), &crawl.Request{
+		URL:       "http://www.imdb.com/chart/top/",
 		Callbacks: crawl.Callbacks(imdb.List),
 	})
 
@@ -36,12 +38,10 @@ func main() {
 	// Its up to You how you want to handle errors
 	// You can reschedule request or ignore that
 	go func() {
-		for err := range c.Errors {
-			log.Printf("Error: %v while requesting %q", err.Error, err.Request.String())
+		for err := range c.Errors() {
+			log.Printf("Crawl error: %v", err)
 		}
 	}()
 
-	if err := c.Start(); err != nil {
-		log.Fatal(err)
-	}
+	c.Start()
 }

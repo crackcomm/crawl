@@ -10,21 +10,21 @@ import (
 	"golang.org/x/net/context"
 )
 
-// Entity - Movie entity.
-var Entity = "imdb_entity"
+// Movie - IMDB movie.
+var Movie = "imdb_movie"
 
-// List - Movies list.
+// List - IMDB movies list.
 var List = "imdb_list"
 
 // Register - Registers imdb spider.
-func Register(c *crawl.Crawl) {
-	spider := &imdbSpider{Crawl: c}
-	c.Handler(Entity, spider.Entity)
-	c.Handler(List, spider.List)
+func Register(c crawl.Crawler) {
+	spider := &imdbSpider{Crawler: c}
+	c.Register(Movie, spider.Movie)
+	c.Register(List, spider.List)
 }
 
 type imdbSpider struct {
-	*crawl.Crawl
+	crawl.Crawler
 }
 
 func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err error) {
@@ -34,17 +34,17 @@ func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err e
 
 	resp.Query().Find("table.chart td.titleColumn a").Each(func(_ int, link *goquery.Selection) {
 		href, _ := link.Attr("href")
-		spider.Crawl.Schedule(&crawl.Request{
+		spider.Crawler.Schedule(ctx, &crawl.Request{
 			URL:       href,
 			Source:    resp,
-			Callbacks: crawl.Callbacks(Entity),
+			Callbacks: crawl.Callbacks(Movie),
 		})
 	})
 
 	return
 }
 
-func (spider *imdbSpider) Entity(ctx context.Context, resp *crawl.Response) (err error) {
+func (spider *imdbSpider) Movie(ctx context.Context, resp *crawl.Response) (err error) {
 	if err := spider.checkError(ctx, resp); err != nil {
 		return err
 	}
