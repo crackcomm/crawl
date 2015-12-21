@@ -2,6 +2,9 @@
 package consumer
 
 import (
+	"errors"
+	"strings"
+
 	"github.com/codegangsta/cli"
 	"github.com/golang/glog"
 
@@ -41,11 +44,20 @@ func New(spiders ...Spider) (app *cli.App) {
 			EnvVar: "CRAWL_CONCURRENCY",
 		},
 	}
-	app.Action = func(c *cli.Context) {
+	app.Before = func(c *cli.Context) error {
+		var errs []string
 		if len(c.StringSlice("nsq-addr")) == 0 {
-			glog.Fatalf("At leat one --%s is required", "nsq-addr")
+			errs = append(errs, "At least one --nsq-addr is required")
 		}
-
+		if len(c.StringSlice("nsqlookup-addr")) == 0 {
+			errs = append(errs, "At least one --nsqlookup-addr is required")
+		}
+		if len(errs) > 0 {
+			return errors.New(strings.Join(errs, "\n"))
+		}
+		return nil
+	}
+	app.Action = func(c *cli.Context) {
 		queue := crawl.NewNsqQueue(c.String("topic"), c.String("channel"), c.Int("concurrency"))
 
 		nsqAddr := c.StringSlice("nsq-addr")[0]
