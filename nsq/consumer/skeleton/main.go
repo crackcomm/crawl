@@ -8,7 +8,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/crackcomm/crawl/nsq/consumer"
-	
+
 	imdb "github.com/crackcomm/crawl/examples/imdb/spider"
 )
 
@@ -26,5 +26,7 @@ func main() {
 	flag.CommandLine.Parse([]string{"-logtostderr", verbosity})
 
 	// Start consumer
-	consumer.New(imdb.Register).Run(os.Args)
+	consumer.New(
+		consumer.WithSpiders(imdb.Register),
+	).Run(os.Args)
 }
