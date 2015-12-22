@@ -1,6 +1,9 @@
 package consumer
 
-import "github.com/crackcomm/crawl"
+import (
+	"github.com/codegangsta/cli"
+	"github.com/crackcomm/crawl"
+)
 
 // Spider - Spider registrator.
 type Spider func(crawl.Crawler)
@@ -37,5 +40,12 @@ func WithSpiders(spiders ...Spider) Option {
 		for _, spider := range spiders {
 			spider(app.Crawler())
 		}
+	}
+}
+
+// WithBefore - Overwrites flag checking before action.
+func WithBefore(fnc func(*cli.Context) error) Option {
+	return func(app *App) {
+		app.before = fnc
 	}
 }

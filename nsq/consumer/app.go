@@ -3,7 +3,6 @@ package consumer
 
 import (
 	"errors"
-	"strings"
 
 	"github.com/codegangsta/cli"
 	"github.com/golang/glog"
@@ -18,6 +17,9 @@ type App struct {
 
 	// NsqQueue - NSQ queue. Constructed as first during Action() call.
 	*crawl.NsqQueue
+
+	// before - Flag requirements checking.
+	before func(c *cli.Context) error
 
 	// crawler - Accessed using Crawler() which constructs it on first call
 	// using parameters from commmand line.
@@ -120,16 +122,16 @@ func (app *App) Before(c *cli.Context) error {
 	// Set application context
 	app.Ctx = c
 
-	// Check required flags
-	var errs []string
-	if len(c.StringSlice("nsq-addr")) == 0 {
-		errs = append(errs, "At least one --nsq-addr is required")
+	// Use customized before if any
+	if app.before != nil {
+		return app.before(c)
 	}
-	if len(c.StringSlice("nsqlookup-addr")) == 0 {
-		errs = append(errs, "At least one --nsqlookup-addr is required")
-	}
-	if len(errs) > 0 {
-		return errors.New(strings.Join(errs, "\n"))
+	return beforeApp(c)
+}
+
+func beforeApp(c *cli.Context) error {
+	if len(c.StringSlice("nsq-addr")) == 0 && len(c.StringSlice("nsqlookup-addr")) == 0 {
+		return errors.New("At least one --nsq-addr or --nsqlookup-addr is required")
 	}
 	return nil
 }
