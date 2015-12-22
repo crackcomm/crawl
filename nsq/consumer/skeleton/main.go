@@ -26,7 +26,11 @@ func main() {
 	flag.CommandLine.Parse([]string{"-logtostderr", verbosity})
 
 	// Start consumer
-	consumer.New(
+	app := consumer.New(
 		consumer.WithSpiders(imdb.Register),
-	).Run(os.Args)
+	)
+
+	if err := app.Run(os.Args); err != nil {
+		glog.Fatal(err)
+	}
 }
