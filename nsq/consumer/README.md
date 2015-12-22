@@ -10,3 +10,30 @@ directory and add your own spiders.
 
 After copying it should be enough to replace all occurences of `github.com/crackcomm/crawl/skeleton` to new path of the application.
 If you want [CircleCI](https://circleci.com/) to deploy docker image for you change `crawl/skeleton` to your image name in `circle.yaml`.
+
+### Command-line Usage
+
+```sh
+$ skeleton --help
+NAME:
+   crawler - nsq crawl consumer
+
+USAGE:
+   crawler [global options] command [command options] [arguments...]
+   
+VERSION:
+   0.0.1
+   
+COMMANDS:
+   help, h	Shows a list of commands or help for one command
+   
+GLOBAL OPTIONS:
+   --topic 								 [$TOPIC]
+   --channel 								 [$CHANNEL]
+   --nsq-addr [--nsq-addr option --nsq-addr option]			 [$NSQ_ADDR]
+   --nsqlookup-addr [--nsqlookup-addr option --nsqlookup-addr option]	 [$NSQLOOKUP_ADDR]
+   --concurrency "100"							 [$CONCURRENCY]
+   --help, -h								show help
+   --version, -v							print the version
+   
+```
