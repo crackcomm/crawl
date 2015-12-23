@@ -28,10 +28,12 @@ func main() {
 		spider(c)
 	}
 
-	c.Schedule(context.Background(), &crawl.Request{
+	if err := c.Schedule(context.Background(), &crawl.Request{
 		URL:       "http://www.imdb.com/chart/top/",
 		Callbacks: crawl.Callbacks(imdb.List),
-	})
+	}); err != nil {
+		log.Fatal(err)
+	}
 
 	log.Print("Starting crawl")
 
