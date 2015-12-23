@@ -8,5 +8,4 @@ HTML parsing and extracting is done thanks to [goquery](https://godoc.org/github
 
 ## Usage
 
-Examples can be found in [examples](https://github.com/crackcomm/crawl/tree/master/examples)
-directory.
+You can take a look at [example](https://github.com/crackcomm/crawl/blob/master/examples/imdb/main.go) crawler code.
