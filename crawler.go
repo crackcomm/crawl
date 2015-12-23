@@ -16,8 +16,7 @@ type Handler func(context.Context, *Response) error
 // Crawler - Crawler interface.
 type Crawler interface {
 	// Schedule - Schedules request.
-	// If deadline is specified in context it will not timeout execution of the
-	// request. It can timeout request scheduling.
+	// Context is used only during scheduling not execution.
 	Schedule(context.Context, *Request) error
 
 	// Execute - Makes a http request using crawl.client.
