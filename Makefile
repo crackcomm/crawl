@@ -5,7 +5,7 @@ OUTPUT ?= ./dist
 build-crawl-schedule:
 	mkdir -p $(OUTPUT)/crawl-schedule
 	cp ./nsq/crawl-schedule/Dockerfile $(OUTPUT)/crawl-schedule/
-	CLFAGS=$(STORED_CLFAGS) LDFLAGS=$(STORED_LDFLAGS) CGO_ENABLED=1 GOOS=linux go build -ldflags '-s -extldflags "-static"' -a -installsuffix cgo \
+	CGO_ENABLED=0 GOOS=linux go build -ldflags '-s -extldflags "-static"' -a -installsuffix cgo \
 		-o $(OUTPUT)/crawl-schedule/crawl-schedule ./nsq/crawl-schedule/main.go
 
 dist: clean build-crawl-schedule
