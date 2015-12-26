@@ -8,6 +8,7 @@ import (
 	"github.com/golang/glog"
 
 	"github.com/crackcomm/crawl"
+	"github.com/crackcomm/crawl/nsq/nsqcrawl"
 )
 
 // App - Consumer command line application structure.
@@ -15,8 +16,8 @@ type App struct {
 	// Ctx - Cli context, set on action.
 	Ctx *cli.Context
 
-	// NsqQueue - NSQ queue. Constructed as first during Action() call.
-	*crawl.NsqQueue
+	// Queue - NSQ queue. Constructed on first Action() call.
+	*nsqcrawl.Queue
 
 	// before - Flag requirements checking.
 	before func(c *cli.Context) error
@@ -75,7 +76,7 @@ func New(opts ...Option) *cli.App {
 
 // Action - Command line action.
 func (app *App) Action(c *cli.Context) {
-	app.NsqQueue = crawl.NewNsqQueue(c.String("topic"), c.String("channel"), c.Int("concurrency"))
+	app.Queue = nsqcrawl.NewQueue(c.String("topic"), c.String("channel"), c.Int("concurrency"))
 
 	for _, opt := range app.opts {
 		opt(app)
@@ -84,14 +85,14 @@ func (app *App) Action(c *cli.Context) {
 	crawler := app.Crawler()
 
 	nsqAddr := c.StringSlice("nsq-addr")[0]
-	if err := app.NsqQueue.Producer.Connect(nsqAddr); err != nil {
+	if err := app.Queue.Producer.Connect(nsqAddr); err != nil {
 		glog.Fatalf("Error connecting producer to %q: %v", nsqAddr, err)
 	}
 
 	if addrs := c.StringSlice("nsq-addr"); len(addrs) != 0 {
 		for _, addr := range addrs {
 			glog.V(3).Infof("Connecting to nsq %s", addr)
-			if err := app.NsqQueue.Consumer.Connect(addr); err != nil {
+			if err := app.Queue.Consumer.Connect(addr); err != nil {
 				glog.Fatalf("Error connecting to nsq %q: %v", addr, err)
 			}
 			glog.V(3).Infof("Connected to nsq %s", addr)
@@ -101,7 +102,7 @@ func (app *App) Action(c *cli.Context) {
 	if addrs := c.StringSlice("nsqlookup-addr"); len(addrs) != 0 {
 		for _, addr := range addrs {
 			glog.V(3).Infof("Connecting to nsq lookup %s", addr)
-			if err := app.NsqQueue.Consumer.ConnectLookupd(addr); err != nil {
+			if err := app.Queue.Consumer.ConnectLookupd(addr); err != nil {
 				glog.Fatalf("Error connecting to nsq lookup %q: %v", addr, err)
 			}
 			glog.V(3).Infof("Connected to nsq lookup %s", addr)
@@ -150,7 +151,7 @@ func (app *App) Crawler() crawl.Crawler {
 
 func crawlerConstructor(app *App) crawl.Crawler {
 	return crawl.New(
-		crawl.WithQueue(app.NsqQueue),
+		crawl.WithQueue(app.Queue),
 		crawl.WithConcurrency(app.Ctx.Int("concurrency")),
 	)
 }

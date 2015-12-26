@@ -1,54 +1,55 @@
-package crawl
+package nsqcrawl
 
 import (
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
+	"github.com/crackcomm/crawl"
 	"github.com/crackcomm/nsqueue/consumer"
 	"github.com/crackcomm/nsqueue/producer"
 )
 
-// NewNsqQueue - Creates nsq consumer and producer.
-func NewNsqQueue(topic, channel string, maxInFlight int) *NsqQueue {
-	q := &NsqQueue{
+// NewQueue - Creates nsq consumer and producer.
+func NewQueue(topic, channel string, maxInFlight int) *Queue {
+	q := &Queue{
 		Consumer: consumer.New(),
 		Producer: producer.New(),
-		memq:     NewQueue(maxInFlight + 1),
+		memq:     crawl.NewQueue(maxInFlight + 1),
 		topic:    topic,
 	}
 	q.Consumer.Register(topic, channel, maxInFlight, q.nsqHandler)
 	return q
 }
 
-// NsqQueue - NSQ Queue.
-type NsqQueue struct {
+// Queue - NSQ Queue.
+type Queue struct {
 	*consumer.Consumer
 	*producer.Producer
 
 	topic string
-	memq  Queue
+	memq  crawl.Queue
 }
 
 // Get - Gets job from channel.
-func (queue *NsqQueue) Get() (job Job, err error) {
+func (queue *Queue) Get() (job crawl.Job, err error) {
 	return queue.memq.Get()
 }
 
 // Schedule - Schedules job in nsq.
 // It will not call job.Done ever.
-func (queue *NsqQueue) Schedule(job Job) (err error) {
+func (queue *Queue) Schedule(job crawl.Job) (err error) {
 	return queue.Producer.PublishJSON(queue.topic, job.Request())
 }
 
 // Close - Closes consumer and producer.
-func (queue *NsqQueue) Close() (err error) {
+func (queue *Queue) Close() (err error) {
 	queue.Producer.Stop()
 	queue.Consumer.Stop()
 	return queue.memq.Close()
 }
 
-func (queue *NsqQueue) nsqHandler(msg *consumer.Message) {
-	req := new(Request)
+func (queue *Queue) nsqHandler(msg *consumer.Message) {
+	req := new(crawl.Request)
 	err := msg.ReadJSON(req)
 	glog.V(3).Infof("nsq json: %s", msg.Body)
 	if err != nil {
@@ -66,10 +67,10 @@ func (queue *NsqQueue) nsqHandler(msg *consumer.Message) {
 
 type nsqJob struct {
 	msg *consumer.Message
-	req *Request
+	req *crawl.Request
 	ctx context.Context
 }
 
 func (job *nsqJob) Context() context.Context { return job.ctx }
-func (job *nsqJob) Request() *Request        { return job.req }
+func (job *nsqJob) Request() *crawl.Request  { return job.req }
 func (job *nsqJob) Done()                    { job.msg.Success() }
