@@ -51,10 +51,11 @@ func New(opts ...Option) Crawler {
 	for _, opt := range opts {
 		opt(c)
 	}
-	if c.client == nil {
-		c.client = &http.Client{
-			Transport: http.DefaultTransport,
-		}
+	if c.transport == nil {
+		c.transport = new(http.Transport)
+	}
+	c.client = &http.Client{
+		Transport: c.transport,
 	}
 	if c.client.Jar == nil {
 		c.client.Jar, _ = cookiejar.New(nil)
@@ -69,6 +70,7 @@ func New(opts ...Option) Crawler {
 type crawl struct {
 	errorsChan chan error
 	handlers   map[string][]Handler
+	transport  *http.Transport
 	client     *http.Client
 	opts       *options
 

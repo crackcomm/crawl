@@ -12,6 +12,13 @@ type options struct {
 	headers       map[string]string
 }
 
+// WithTransport - Sets crawl HTTP transport.
+func WithTransport(transport *http.Transport) Option {
+	return func(crawl *crawl) {
+		crawl.transport = transport
+	}
+}
+
 // WithQueue - Sets crawl queue.
 // Default: creates queue using NewQueue() with capacity of WitWithQueueCapacity().
 func WithQueue(queue Queue) Option {
@@ -43,12 +50,5 @@ func WithConcurrency(n int) Option {
 func WithQueueCapacity(n int) Option {
 	return func(crawl *crawl) {
 		crawl.opts.queueCapacity = n
-	}
-}
-
-// WithClient - Sets crawl HTTP client.
-func WithClient(client *http.Client) Option {
-	return func(crawl *crawl) {
-		crawl.client = client
 	}
 }
