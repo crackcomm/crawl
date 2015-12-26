@@ -19,8 +19,8 @@ type Crawler interface {
 	// Context is used only during scheduling not execution.
 	Schedule(context.Context, *Request) error
 
-	// Execute - Makes a http request using crawl.client.
-	// If request Raw is not true ParseHTML() method is executed on Response.
+	// Execute - Makes a http request respecting context deadline.
+	// If request Raw is not true - ParseHTML() method is executed on Response.
 	// Then all callbacks are executed with context.
 	Execute(context.Context, *Request) (*Response, error)
 
