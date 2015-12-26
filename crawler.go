@@ -106,26 +106,26 @@ func (crawl *crawl) Start() {
 
 func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, err error) {
 	// Get http.Request structure
-	httpreq, err := req.HTTPRequest()
+	request, err := req.HTTPRequest()
 	if err != nil {
 		return
 	}
 
 	// Copy default headers
 	for name, value := range crawl.opts.headers {
-		if _, has := httpreq.Header[name]; !has {
-			httpreq.Header.Set(name, value)
+		if _, has := request.Header[name]; !has {
+			request.Header.Set(name, value)
 		}
 	}
 
 	// Send request and read response
-	response, err := crawl.client.Do(httpreq)
+	err = crawl.httpDo(ctx, request, func(response *http.Response) error {
+		resp = &Response{Response: response}
+		return nil
+	})
 	if err != nil {
 		return
 	}
-
-	// Make temporary response structure
-	resp = &Response{Response: response}
 
 	// Parse HTML if not request.Raw
 	if !req.Raw {
@@ -166,4 +166,24 @@ func (crawl *crawl) Errors() <-chan error {
 
 func (crawl *crawl) Handlers() map[string][]Handler {
 	return crawl.handlers
+}
+
+func (crawl *crawl) httpDo(ctx context.Context, req *http.Request, f func(*http.Response) error) error {
+	c := make(chan error, 1)
+	go func() {
+		resp, err := crawl.client.Do(req)
+		if err != nil {
+			c <- err
+		} else {
+			c <- f(resp)
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		crawl.transport.CancelRequest(req)
+		<-c
+		return ctx.Err()
+	case err := <-c:
+		return err
+	}
 }
