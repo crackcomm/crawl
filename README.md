@@ -9,3 +9,9 @@ HTML parsing and extracting is done thanks to [goquery](https://godoc.org/github
 ## Usage
 
 You can take a look at [example](https://github.com/crackcomm/crawl/blob/master/examples/imdb/main.go) crawler code.
+
+## License
+
+                                 Apache License
+                           Version 2.0, January 2004
+                        http://www.apache.org/licenses/
