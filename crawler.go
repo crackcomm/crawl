@@ -46,7 +46,7 @@ type Crawler interface {
 func New(opts ...Option) Crawler {
 	c := &crawl{
 		handlers: make(map[string][]Handler),
-		opts:     &options{concurrency: 1000, queueCapacity: 10000},
+		opts:     &options{concurrency: 1000, queueCapacity: 10000, headers: DefaultHeaders},
 	}
 	for _, opt := range opts {
 		opt(c)
@@ -54,9 +54,7 @@ func New(opts ...Option) Crawler {
 	if c.transport == nil {
 		c.transport = new(http.Transport)
 	}
-	c.client = &http.Client{
-		Transport: c.transport,
-	}
+	c.client = &http.Client{Transport: c.transport}
 	if c.client.Jar == nil {
 		c.client.Jar, _ = cookiejar.New(nil)
 	}
@@ -64,6 +62,13 @@ func New(opts ...Option) Crawler {
 		c.queue = NewQueue(c.opts.queueCapacity)
 	}
 	return c
+}
+
+// DefaultHeaders - Default crawler headers.
+var DefaultHeaders = map[string]string{
+	"Accept":          "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+	"Accept-Language": "en-US,en;q=0.8",
+	"User-Agent":      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/46.0.2490.86 Safari/537.36",
 }
 
 // crawl - Crawler structure.
