@@ -35,6 +35,16 @@ func WithDefaultHeaders(headers map[string]string) Option {
 	}
 }
 
+// WithUserAgent - Sets crawl default user-agent.
+func WithUserAgent(ua string) Option {
+	return func(crawl *crawl) {
+		if crawl.opts.headers == nil {
+			crawl.opts.headers = make(map[string]string)
+		}
+		crawl.opts.headers["User-Agent"] = ua
+	}
+}
+
 // WithConcurrency - Sets crawl concurrency.
 // Default: 1000.
 func WithConcurrency(n int) Option {
