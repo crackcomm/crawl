@@ -6,7 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -19,11 +18,6 @@ type Response struct {
 	Body []byte
 
 	doc *goquery.Document
-}
-
-// Text - Finds node in response and returns text.
-func Text(resp *Response, selector string) string {
-	return strings.TrimSpace(resp.Query().Find(selector).Text())
 }
 
 // ParseHTML - Reads response body and parses it as HTML.
