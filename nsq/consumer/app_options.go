@@ -5,17 +5,13 @@ import (
 	"github.com/crackcomm/crawl"
 )
 
-// Spider - Spider registrator.
-type Spider func(crawl.Crawler)
-
 // Option - Consumer app option setter.
 type Option func(*App)
 
-// WithSpiderConstructor - Accepts a function which will construct a spider
-// and register on a crawler from app.GetCrawler().
-func WithSpiderConstructor(fnc func(app *App)) Option {
+// WithSpiderConstructor - Constructs a spider on action.
+func WithSpiderConstructor(fnc func(*App) Spider) Option {
 	return func(app *App) {
-		fnc(app)
+		app.spiderConstructors = append(app.spiderConstructors, fnc)
 	}
 }
 

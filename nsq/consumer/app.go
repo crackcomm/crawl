@@ -13,6 +13,9 @@ import (
 	"github.com/crackcomm/crawl/nsq/nsqcrawl"
 )
 
+// Spider - Spider registrator.
+type Spider func(crawl.Crawler)
+
 // App - Consumer command line application structure.
 type App struct {
 	// Ctx - Cli context, set on action.
@@ -35,6 +38,9 @@ type App struct {
 	// opts - Options which are applied on Action() call with all required
 	// parameters from the command line context.
 	opts []Option
+
+	// spiderConstructors - List of functions which use flags to construct spider.
+	spiderConstructors []func(*App) Spider
 }
 
 // Flags - Consumer app flags.
@@ -109,6 +115,10 @@ func (app *App) Action(c *cli.Context) {
 			}
 			glog.V(3).Infof("Connected to nsq lookup %s", addr)
 		}
+	}
+
+	for _, spiderConstructor := range app.spiderConstructors {
+		spiderConstructor(app)(crawler)
 	}
 
 	go func() {
