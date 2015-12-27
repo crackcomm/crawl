@@ -123,7 +123,7 @@ func (app *App) Action(c *cli.Context) {
 		done <- true
 	}()
 
-	glog.Infof("Started crawler")
+	glog.Infof("Started crawler (topic=%q)", c.String("topic"))
 
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt)
