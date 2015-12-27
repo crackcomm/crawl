@@ -43,6 +43,17 @@ func ParseFloat(resp *Response, selector string) (res float64, err error) {
 	return
 }
 
+// ParseUint - Finds node in response and parses text as uint64.
+// When text is not found returns result 0 and nil error.
+// Returned error source is strconv.ParseUint.
+func ParseUint(resp *Response, selector string) (res uint64, err error) {
+	if text := Text(resp, selector); text != "" {
+		text = strings.Replace(text, ",", "", -1)
+		res, err = strconv.ParseUint(text, 10, 64)
+	}
+	return
+}
+
 // Attr - Finds node in response and returns attr content.
 func Attr(resp *Response, attr, selector string) string {
 	v, _ := resp.Query().Find(selector).Attr(attr)
