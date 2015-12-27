@@ -1,6 +1,7 @@
 package crawl
 
 import (
+	"strconv"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -29,6 +30,17 @@ func FindAny(resp *Response, selectors ...string) (node *goquery.Selection) {
 // Text - Finds node in response and returns text.
 func Text(resp *Response, selector string) string {
 	return strings.TrimSpace(resp.Query().Find(selector).Text())
+}
+
+// ParseFloat - Finds node in response and parses text as float64.
+// When text is not found returns result 0.0 and nil error.
+// Returned error source is strconv.ParseFloat.
+func ParseFloat(resp *Response, selector string) (res float64, err error) {
+	if text := Text(resp, selector); text != "" {
+		text = strings.Replace(text, ",", ".", -1)
+		res, err = strconv.ParseFloat(text, 64)
+	}
+	return
 }
 
 // Attr - Finds node in response and returns attr content.
