@@ -10,10 +10,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/bitly/go-nsq"
 	"github.com/codegangsta/cli"
 	"github.com/crackcomm/crawl"
 	"github.com/golang/glog"
+	"github.com/nsqio/go-nsq"
 )
 
 func main() {
