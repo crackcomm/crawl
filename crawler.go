@@ -5,7 +5,10 @@ import (
 	"io"
 	"net/http"
 	"net/http/cookiejar"
+	"strings"
 	"sync"
+
+	"github.com/golang/glog"
 
 	"golang.org/x/net/context"
 )
@@ -95,6 +98,12 @@ func (crawl *crawl) Start() {
 				} else if err != nil {
 					crawl.errorsChan <- err
 					return
+				}
+
+				if glog.V(3) {
+					req := job.Request()
+					glog.Infof("request method=%q url=%q callbacks=%q",
+						req.GetMethod(), req.URL, strings.Join(req.Callbacks, ","))
 				}
 
 				if _, err := crawl.Execute(job.Context(), job.Request()); err != nil {
