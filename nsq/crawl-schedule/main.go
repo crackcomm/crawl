@@ -24,14 +24,14 @@ func main() {
 	app.Flags = []cli.Flag{
 		cli.StringSliceFlag{
 			Name:   "nsq-addr",
-			Usage:  "nsq address (at least one is required)",
 			EnvVar: "NSQ_ADDR",
+			Usage:  "nsq address (at least one is required)",
 		},
 		cli.StringFlag{
-			Name:   "nsq-topic",
-			Value:  "crawl_requests",
+			Name:   "topic",
+			EnvVar: "TOPIC",
 			Usage:  "crawl requests nsq topic",
-			EnvVar: "NSQ_TOPIC",
+			Value:  "crawl_requests",
 		},
 		cli.StringSliceFlag{
 			Name:  "form-value",
@@ -51,12 +51,15 @@ func main() {
 		},
 		cli.StringFlag{
 			Name:  "method",
-			Value: "GET",
 			Usage: "crawl request referer",
+			Value: "GET",
 		},
 	}
 	app.Before = func(c *cli.Context) error {
 		var errs []string
+		if len(c.String("topic")) == 0 {
+			errs = append(errs, "Topic cannot be empty")
+		}
 		if len(c.StringSlice("nsq-addr")) == 0 {
 			errs = append(errs, "At least one --nsq-addr is required")
 		}
@@ -106,7 +109,7 @@ func main() {
 			glog.Fatalf("Error connecting to nsq: %v", err)
 		}
 
-		if err := producer.Publish(c.String("nsq-topic"), body); err != nil {
+		if err := producer.Publish(c.String("topic"), body); err != nil {
 			glog.Fatalf("Publish error: %v", err)
 		}
 
