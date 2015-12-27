@@ -15,6 +15,17 @@ var NodeSrc = NodeAttr("src")
 // NodeDataPhoto - Node "data-photo" attribute selector.
 var NodeDataPhoto = NodeAttr("data-photo")
 
+// FindAny - Finds node in response and returns attr content.
+func FindAny(resp *Response, selectors ...string) (node *goquery.Selection) {
+	for _, selector := range selectors {
+		node = resp.Query().Find(selector)
+		if node.Length() > 0 {
+			break
+		}
+	}
+	return
+}
+
 // Text - Finds node in response and returns text.
 func Text(resp *Response, selector string) string {
 	return strings.TrimSpace(resp.Query().Find(selector).Text())
