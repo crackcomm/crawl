@@ -17,6 +17,12 @@ func Text(resp *Response, selector string) string {
 	return strings.TrimSpace(resp.Query().Find(selector).Text())
 }
 
+// Attr - Finds node in response and returns attr content.
+func Attr(resp *Response, attr, selector string) string {
+	v, _ := resp.Query().Find(selector).Attr(attr)
+	return strings.TrimSpace(v)
+}
+
 // NodeText - Returns node text.
 // Helper for (*goquery.Selection).Each().
 func NodeText(_ int, n *goquery.Selection) string {
