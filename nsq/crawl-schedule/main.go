@@ -22,10 +22,10 @@ func main() {
 	app.ArgsUsage = "<url>"
 	app.Usage = "schedules a crawl request in nsq"
 	app.Flags = []cli.Flag{
-		cli.StringSliceFlag{
+		cli.StringFlag{
 			Name:   "nsq-addr",
 			EnvVar: "NSQ_ADDR",
-			Usage:  "nsq address (at least one is required)",
+			Usage:  "nsq address",
 		},
 		cli.StringFlag{
 			Name:   "topic",
@@ -60,7 +60,7 @@ func main() {
 		if len(c.String("topic")) == 0 {
 			errs = append(errs, "Topic cannot be empty")
 		}
-		if len(c.StringSlice("nsq-addr")) == 0 {
+		if len(c.String("nsq-addr")) == 0 {
 			errs = append(errs, "At least one --nsq-addr is required")
 		}
 		if len(c.StringSlice("callback")) == 0 {
@@ -104,7 +104,7 @@ func main() {
 			glog.Fatalf("Error marshaling request to json: %v", err)
 		}
 
-		producer, err := nsq.NewProducer(c.StringSlice("nsq-addr")[0], nsq.NewConfig())
+		producer, err := nsq.NewProducer(c.String("nsq-addr"), nsq.NewConfig())
 		if err != nil {
 			glog.Fatalf("Error connecting to nsq: %v", err)
 		}
