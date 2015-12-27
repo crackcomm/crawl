@@ -3,6 +3,8 @@ package consumer
 
 import (
 	"errors"
+	"os"
+	"os/signal"
 
 	"github.com/codegangsta/cli"
 	"github.com/golang/glog"
@@ -115,7 +117,29 @@ func (app *App) Action(c *cli.Context) {
 		}
 	}()
 
-	crawler.Start()
+	done := make(chan bool, 1)
+	go func() {
+		crawler.Start()
+		done <- true
+	}()
+
+	glog.Infof("Started crawler")
+
+	sig := make(chan os.Signal, 1)
+	signal.Notify(sig, os.Interrupt)
+
+	select {
+	case <-done:
+		glog.Info("Crawler is done")
+	case s := <-sig:
+		glog.Infof("Received signal %v, closing crawler", s)
+		if err := app.Queue.Close(); err != nil {
+			glog.Fatalf("Error closing queue: %v", err)
+		}
+		<-done
+		glog.Info("Crawler closed")
+	}
+
 }
 
 // Before - Executed before action.
