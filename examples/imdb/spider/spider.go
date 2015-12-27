@@ -28,7 +28,7 @@ type imdbSpider struct {
 }
 
 func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err error) {
-	if err := spider.checkError(ctx, resp); err != nil {
+	if err := spider.checkError(resp); err != nil {
 		return err
 	}
 
@@ -45,7 +45,7 @@ func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err e
 }
 
 func (spider *imdbSpider) Movie(ctx context.Context, resp *crawl.Response) (err error) {
-	if err := spider.checkError(ctx, resp); err != nil {
+	if err := spider.checkError(resp); err != nil {
 		return err
 	}
 
@@ -56,9 +56,8 @@ func (spider *imdbSpider) Movie(ctx context.Context, resp *crawl.Response) (err 
 	return
 }
 
-func (spider *imdbSpider) checkError(ctx context.Context, resp *crawl.Response) (err error) {
-	doh := crawl.Text(resp, "h1")
-	if doh == "D'oh!" {
+func (spider *imdbSpider) checkError(resp *crawl.Response) (err error) {
+	if crawl.Text(resp, "h1") == "D'oh!" {
 		return fmt.Errorf("IMDB returned: %q", crawl.Text(resp, "body"))
 	}
 	return
