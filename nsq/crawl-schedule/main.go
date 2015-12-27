@@ -19,6 +19,7 @@ func main() {
 	app.Name = "crawl-schedule"
 	app.HelpName = app.Name
 	app.Version = "0.0.1"
+	app.ArgsUsage = "<url>"
 	app.Usage = "schedules a crawl request in nsq"
 	app.Flags = []cli.Flag{
 		cli.StringSliceFlag{
