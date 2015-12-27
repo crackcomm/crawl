@@ -51,7 +51,6 @@ func (queue *Queue) Close() (err error) {
 func (queue *Queue) nsqHandler(msg *consumer.Message) {
 	req := new(crawl.Request)
 	err := msg.ReadJSON(req)
-	glog.V(3).Infof("nsq json: %s", msg.Body)
 	if err != nil {
 		glog.V(3).Infof("nsq json (%s) error: %v", msg.Body, err)
 		msg.GiveUp()
