@@ -48,8 +48,9 @@ type Crawler interface {
 // a memory queue with a capacity of WithQueueCapacity seting value (default=10000).
 func New(opts ...Option) Crawler {
 	c := &crawl{
-		handlers: make(map[string][]Handler),
-		opts:     &options{concurrency: 1000, queueCapacity: 10000, headers: DefaultHeaders},
+		handlers:   make(map[string][]Handler),
+		opts:       &options{concurrency: 1000, queueCapacity: 10000, headers: DefaultHeaders},
+		errorsChan: make(chan error, 10000),
 	}
 	for _, opt := range opts {
 		opt(c)
