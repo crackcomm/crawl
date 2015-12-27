@@ -22,12 +22,11 @@ type Response struct {
 
 // ParseHTML - Reads response body and parses it as HTML.
 func (r *Response) ParseHTML() (err error) {
-	err = r.Read()
+	body, err := r.ReadBody()
 	if err != nil {
 		return
 	}
-
-	rdr := bytes.NewBuffer(r.Body)
+	rdr := bytes.NewBuffer(body)
 	r.doc, err = goquery.NewDocumentFromReader(rdr)
 	return
 }
@@ -39,6 +38,15 @@ func (r *Response) Read() (err error) {
 		r.Body, err = ioutil.ReadAll(r.Response.Body)
 	}
 	return
+}
+
+// ReadBody - Runs Read() and returns response Body.
+func (r *Response) ReadBody() (body []byte, err error) {
+	err = r.Read()
+	if err != nil {
+		return
+	}
+	return r.Body, nil
 }
 
 // WriteFile - Reads response body to memory and writes to file.
