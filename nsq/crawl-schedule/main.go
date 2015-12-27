@@ -83,8 +83,8 @@ func main() {
 		}
 
 		request := &crawl.Request{
-			URL:       strings.Trim(c.Args()[1], `"'`),
-			Method:    c.Args()[0],
+			URL:       strings.Trim(c.Args().First(), `"'`),
+			Method:    c.String("method"),
 			Referer:   c.String("referer"),
 			Callbacks: c.StringSlice("callback"),
 			Form:      form,
