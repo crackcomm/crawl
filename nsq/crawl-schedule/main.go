@@ -118,16 +118,24 @@ func main() {
 			glog.Fatalf("Error marshaling request to json: %v", err)
 		}
 
-		producer, err := nsq.NewProducer(c.String("nsq-addr"), nsq.NewConfig())
+		cfg := nsq.NewConfig()
+		cfg.OutputBufferTimeout = 0
+
+		producer, err := nsq.NewProducer(c.String("nsq-addr"), cfg)
 		if err != nil {
 			glog.Fatalf("Error connecting to nsq: %v", err)
 		}
+
+		producer.SetLogger(log.New(os.Stdout, "[nsq]", 0), nsq.LogLevelError)
+
+		glog.Infof("Publishing request to %q", c.String("topic"))
 
 		if err := producer.Publish(c.String("topic"), body); err != nil {
 			glog.Fatalf("Publish error: %v", err)
 		}
 
 		glog.Info("Request scheduled")
+		producer.Stop()
 	}
 
 	if err := app.Run(os.Args); err != nil {
