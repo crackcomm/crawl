@@ -6,10 +6,13 @@ import (
 	"github.com/PuerkitoBio/goquery"
 )
 
-// NodeHref -
+// NodeHref - Node "href" attribute selector.
 var NodeHref = NodeAttr("href")
 
-// NodeDataPhoto -
+// NodeSrc - Node "src" attribute selector.
+var NodeSrc = NodeAttr("src")
+
+// NodeDataPhoto - Node "data-photo" attribute selector.
 var NodeDataPhoto = NodeAttr("data-photo")
 
 // Text - Finds node in response and returns text.
