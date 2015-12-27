@@ -49,6 +49,7 @@ func ParseFloat(resp *Response, selector string) (res float64, err error) {
 func ParseUint(resp *Response, selector string) (res uint64, err error) {
 	if text := Text(resp, selector); text != "" {
 		text = strings.Replace(text, ",", "", -1)
+		text = strings.Replace(text, " ", "", -1)
 		res, err = strconv.ParseUint(text, 10, 64)
 	}
 	return
