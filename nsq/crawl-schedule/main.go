@@ -3,9 +3,11 @@ package main
 import (
 	"encoding/json"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/bitly/go-nsq"
@@ -15,6 +17,18 @@ import (
 )
 
 func main() {
+	defer glog.Flush()
+
+	// CRAWL_DEBUG environment variable turns on debug mode
+	// crawler then can spit out logs using glog.V(3)
+	var verbosity string
+	if yes, _ := strconv.ParseBool(os.Getenv("CRAWL_DEBUG")); yes {
+		verbosity = "-v=3"
+	}
+
+	// We are setting glog to log to stderr
+	flag.CommandLine.Parse([]string{"-logtostderr", verbosity})
+
 	app := cli.NewApp()
 	app.Name = "crawl-schedule"
 	app.HelpName = app.Name
