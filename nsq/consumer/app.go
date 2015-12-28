@@ -48,10 +48,14 @@ var Flags = []cli.Flag{
 	cli.StringFlag{
 		Name:   "topic",
 		EnvVar: "TOPIC",
+		Usage:  "crawl requests nsq topic (required)",
+		Value:  "crawl_requests",
 	},
 	cli.StringFlag{
 		Name:   "channel",
 		EnvVar: "CHANNEL",
+		Usage:  "crawl requests nsq channel (required)",
+		Value:  "default",
 	},
 	cli.StringSliceFlag{
 		Name:   "nsq-addr",

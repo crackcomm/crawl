@@ -39,25 +39,25 @@ func main() {
 		cli.StringFlag{
 			Name:   "nsq-addr",
 			EnvVar: "NSQ_ADDR",
-			Usage:  "nsq address",
+			Usage:  "nsq address (required)",
 		},
 		cli.StringFlag{
 			Name:   "topic",
 			EnvVar: "TOPIC",
-			Usage:  "crawl requests nsq topic",
+			Usage:  "crawl requests nsq topic (required)",
 			Value:  "crawl_requests",
 		},
 		cli.StringSliceFlag{
 			Name:  "form-value",
-			Usage: "form value in format (key=value)",
+			Usage: "form value in format (format: key=value)",
 		},
 		cli.StringSliceFlag{
 			Name:  "metadata",
-			Usage: "metadata value in format (key=value)",
+			Usage: "metadata value in format (format: key=value)",
 		},
 		cli.StringSliceFlag{
 			Name:  "callback",
-			Usage: "crawl request callbacks (at least one is required)",
+			Usage: "crawl request callbacks (required)",
 		},
 		cli.StringFlag{
 			Name:  "referer",
@@ -84,6 +84,7 @@ func main() {
 			errs = append(errs, "At least one url is required in arguments.")
 		}
 		if len(errs) != 0 {
+			errs = append([]string{"Errors:"}, errs...)
 			return errors.New(strings.Join(errs, "\n"))
 		}
 		return nil
@@ -139,7 +140,7 @@ func main() {
 	}
 
 	if err := app.Run(os.Args); err != nil {
-		log.Fatal(err)
+		glog.Fatal(err)
 	}
 }
 
