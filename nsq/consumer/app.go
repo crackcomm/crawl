@@ -165,6 +165,9 @@ func (app *App) Before(c *cli.Context) error {
 }
 
 func beforeApp(c *cli.Context) error {
+	if c.String("topic") == "" {
+		return errors.New("Flag --topic cannot be empty.")
+	}
 	if len(c.StringSlice("nsq-addr")) == 0 && len(c.StringSlice("nsqlookup-addr")) == 0 {
 		return errors.New("At least one --nsq-addr or --nsqlookup-addr is required")
 	}
