@@ -30,7 +30,7 @@ type Request struct {
 	Source    *Response         `json:"-"`
 }
 
-// Callbacks - Helper for creating list of interfaces.
+// Callbacks - Helper for creating list of strings (callback names).
 func Callbacks(v ...string) []string {
 	return v
 }
