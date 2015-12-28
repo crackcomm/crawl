@@ -106,7 +106,7 @@ func main() {
 			Referer:   c.String("referer"),
 			Callbacks: c.StringSlice("callback"),
 			Form:      form,
-			Metadata:  metadata,
+			Metadata:  mapStringsToInterfaces(metadata),
 		}
 
 		if glog.V(3) {
@@ -153,6 +153,14 @@ func listToMap(list []string) (result map[string]string, err error) {
 		}
 		key := keyValue[:i]
 		value := keyValue[i+1:]
+		result[key] = value
+	}
+	return
+}
+
+func mapStringsToInterfaces(input map[string]string) (result map[string]interface{}) {
+	result = make(map[string]interface{})
+	for key, value := range input {
 		result[key] = value
 	}
 	return

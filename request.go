@@ -20,14 +20,14 @@ import (
 // and with form encoded body.
 // Multipart form is not implemented.
 type Request struct {
-	URL       string            `json:"url,omitempty"`
-	Method    string            `json:"method,omitempty"`
-	Referer   string            `json:"referer,omitempty"`
-	Form      map[string]string `json:"form,omitempty"`
-	Raw       bool              `json:"raw,omitempty"`
-	Callbacks []string          `json:"callbacks,omitempty"`
-	Metadata  map[string]string `json:"metadata,omitempty"`
-	Source    *Response         `json:"-"`
+	URL       string                 `json:"url,omitempty"`
+	Method    string                 `json:"method,omitempty"`
+	Referer   string                 `json:"referer,omitempty"`
+	Form      map[string]string      `json:"form,omitempty"`
+	Raw       bool                   `json:"raw,omitempty"`
+	Callbacks []string               `json:"callbacks,omitempty"`
+	Metadata  map[string]interface{} `json:"metadata,omitempty"`
+	Source    *Response              `json:"-"`
 }
 
 // Callbacks - Helper for creating list of strings (callback names).
