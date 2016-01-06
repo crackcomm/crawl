@@ -14,7 +14,7 @@ import (
 )
 
 // Open - Opens crawl response in browser.
-func Open(ctx context.Context, resp *crawl.Response) error {
+func Open(resp *crawl.Response) error {
 	fname := filepath.Join(os.TempDir(), fmt.Sprintf("%s.html", uuid.NewV4().String()))
 	body, err := resp.ReadBody()
 	if err != nil {
@@ -24,4 +24,9 @@ func Open(ctx context.Context, resp *crawl.Response) error {
 		return err
 	}
 	return open.Start(fmt.Sprintf("file://%s", fname))
+}
+
+// Handler - Crawl handler that opens crawl response in browser.
+func Handler(_ context.Context, resp *crawl.Response) error {
+	return Open(resp)
 }
