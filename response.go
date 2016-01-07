@@ -81,6 +81,11 @@ func (r *Response) Query() *goquery.Document {
 	return r.doc
 }
 
+// Find - Short for: r.Query().Find(selector).
+func (r *Response) Find(selector string) *goquery.Selection {
+	return r.Query().Find(selector)
+}
+
 // Close - Closes response body.
 func (r *Response) Close() (err error) {
 	return r.Response.Body.Close()

@@ -16,10 +16,15 @@ var NodeSrc = NodeAttr("src")
 // NodeDataPhoto - Node "data-photo" attribute selector.
 var NodeDataPhoto = NodeAttr("data-photo")
 
+// Finder - HTML finder.
+type Finder interface {
+	Find(string) *goquery.Selection
+}
+
 // FindAny - Finds node in response and returns attr content.
-func FindAny(resp *Response, selectors ...string) (node *goquery.Selection) {
+func FindAny(finder Finder, selectors ...string) (node *goquery.Selection) {
 	for _, selector := range selectors {
-		node = resp.Query().Find(selector)
+		node = finder.Find(selector)
 		if node.Length() > 0 {
 			break
 		}
@@ -28,15 +33,15 @@ func FindAny(resp *Response, selectors ...string) (node *goquery.Selection) {
 }
 
 // Text - Finds node in response and returns text.
-func Text(resp *Response, selector string) string {
-	return strings.TrimSpace(resp.Query().Find(selector).Text())
+func Text(n Finder, selector string) string {
+	return strings.TrimSpace(n.Find(selector).Text())
 }
 
 // ParseFloat - Finds node in response and parses text as float64.
 // When text is not found returns result 0.0 and nil error.
 // Returned error source is strconv.ParseFloat.
-func ParseFloat(resp *Response, selector string) (res float64, err error) {
-	if text := Text(resp, selector); text != "" {
+func ParseFloat(n Finder, selector string) (res float64, err error) {
+	if text := Text(n, selector); text != "" {
 		text = strings.Replace(text, ",", ".", -1)
 		res, err = strconv.ParseFloat(text, 64)
 	}
@@ -46,8 +51,8 @@ func ParseFloat(resp *Response, selector string) (res float64, err error) {
 // ParseUint - Finds node in response and parses text as uint64.
 // When text is not found returns result 0 and nil error.
 // Returned error source is strconv.ParseUint.
-func ParseUint(resp *Response, selector string) (res uint64, err error) {
-	if text := Text(resp, selector); text != "" {
+func ParseUint(n Finder, selector string) (res uint64, err error) {
+	if text := Text(n, selector); text != "" {
 		text = strings.Replace(text, ",", "", -1)
 		text = strings.Replace(text, " ", "", -1)
 		res, err = strconv.ParseUint(text, 10, 64)
@@ -55,16 +60,16 @@ func ParseUint(resp *Response, selector string) (res uint64, err error) {
 	return
 }
 
-// Attr - Finds node in response and returns attr content.
-func Attr(resp *Response, attr, selector string) string {
-	v, _ := resp.Query().Find(selector).Attr(attr)
-	return strings.TrimSpace(v)
-}
-
 // NodeText - Returns node text.
 // Helper for (*goquery.Selection).Each().
 func NodeText(_ int, n *goquery.Selection) string {
 	return n.Text()
+}
+
+// Attr - Finds node in response and returns attr content.
+func Attr(n Finder, attr, selector string) string {
+	v, _ := n.Find(selector).Attr(attr)
+	return strings.TrimSpace(v)
 }
 
 // NodeAttr -  Returns node attribute selector.
