@@ -34,7 +34,7 @@ func FindAny(finder Finder, selectors ...string) (node *goquery.Selection) {
 
 // Text - Finds node in response and returns text.
 func Text(n Finder, selector string) string {
-	return strings.TrimSpace(n.Find(selector).Text())
+	return strings.Join(strings.Fields(n.Find(selector).Text()), " ")
 }
 
 // ParseFloat - Finds node in response and parses text as float64.
@@ -63,7 +63,7 @@ func ParseUint(n Finder, selector string) (res uint64, err error) {
 // NodeText - Returns node text.
 // Helper for (*goquery.Selection).Each().
 func NodeText(_ int, n *goquery.Selection) string {
-	return strings.TrimSpace(n.Text())
+	return strings.Join(strings.Fields(n.Text()), " ")
 }
 
 // Attr - Finds node in response and returns attr content.
