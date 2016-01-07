@@ -34,7 +34,13 @@ func FindAny(finder Finder, selectors ...string) (node *goquery.Selection) {
 
 // Text - Finds node in response and returns text.
 func Text(n Finder, selector string) string {
-	return strings.Join(strings.Fields(n.Find(selector).Text()), " ")
+	return strings.Join(strings.Fields(getText(n.Find(selector))), " ")
+}
+
+func getText(n *goquery.Selection) string {
+	return strings.Join(n.Map(func(_ int, s *goquery.Selection) string {
+		return s.Text()
+	}), " ")
 }
 
 // ParseFloat - Finds node in response and parses text as float64.
