@@ -9,9 +9,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
+
+	"golang.org/x/net/context"
 
 	"github.com/codegangsta/cli"
 	"github.com/crackcomm/crawl"
+	"github.com/crackcomm/crawl/nsq/nsqcrawl"
 	"github.com/golang/glog"
 	"github.com/nsqio/go-nsq"
 )
@@ -68,6 +72,10 @@ func main() {
 			Usage: "crawl request referer",
 			Value: "GET",
 		},
+		cli.DurationFlag{
+			Name:  "timeout",
+			Usage: "request timeout",
+		},
 	}
 	app.Before = func(c *cli.Context) error {
 		var errs []string
@@ -114,29 +122,31 @@ func main() {
 			glog.Infof("Scheduling request: %s", body)
 		}
 
-		body, err := json.Marshal(request)
-		if err != nil {
-			glog.Fatalf("Error marshaling request to json: %v", err)
+		ctx := context.Background()
+
+		// Set context deadline
+		if timeout := c.Duration("timeout"); timeout > 0 {
+			ctx, _ = context.WithDeadline(ctx, time.Now().Add(timeout))
 		}
 
+		// Create nsq queue
+		q := nsqcrawl.NewProducer(c.String("topic"))
+		defer q.Close()
+
+		// Connect to nsq
 		cfg := nsq.NewConfig()
 		cfg.OutputBufferTimeout = 0
-
-		producer, err := nsq.NewProducer(c.String("nsq-addr"), cfg)
-		if err != nil {
+		if err := q.Producer.ConnectConfig(c.String("nsq-addr"), cfg); err != nil {
 			glog.Fatalf("Error connecting to nsq: %v", err)
 		}
 
-		producer.SetLogger(log.New(os.Stdout, "[nsq]", 0), nsq.LogLevelError)
+		// Configure NSQ producer logger
+		q.Producer.SetLogger(log.New(os.Stdout, "[nsq]", 0), nsq.LogLevelError)
 
-		glog.Infof("Publishing request to %q", c.String("topic"))
-
-		if err := producer.Publish(c.String("topic"), body); err != nil {
-			glog.Fatalf("Publish error: %v", err)
+		// Schedule request
+		if err := q.Schedule(ctx, request); err != nil {
+			glog.Fatalf("schedule error: %v", err)
 		}
-
-		glog.Info("Request scheduled")
-		producer.Stop()
 	}
 
 	if err := app.Run(os.Args); err != nil {
