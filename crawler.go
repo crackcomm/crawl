@@ -141,6 +141,7 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 	if err != nil {
 		return
 	}
+	defer resp.Close()
 
 	// Parse HTML if not request.Raw
 	if !req.Raw {
