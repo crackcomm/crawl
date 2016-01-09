@@ -127,6 +127,13 @@ type reqJob struct {
 	ctx context.Context
 }
 
-func (job *reqJob) Context() context.Context { return job.ctx }
-func (job *reqJob) Request() *Request        { return job.req }
-func (job *reqJob) Done()                    {}
+func (job *reqJob) Context() context.Context {
+	return job.ctx
+}
+
+func (job *reqJob) Request() *Request {
+	return job.req
+}
+
+func (job *reqJob) Done() {
+}
