@@ -1,6 +1,9 @@
 package crawl
 
-import "net/http"
+import (
+	"net/http"
+	"time"
+)
 
 // Option - Crawl option.
 type Option func(*crawl)
@@ -10,6 +13,8 @@ type options struct {
 	concurrency   int
 	queueCapacity int
 	headers       map[string]string
+
+	defaultTimeout time.Duration
 }
 
 // WithTransport - Sets crawl HTTP transport.
@@ -69,5 +74,12 @@ func WithSpiders(spiders ...func(Crawler)) Option {
 		for _, spider := range spiders {
 			spider(c)
 		}
+	}
+}
+
+// WithDefaultTimeout - Sets default request timeout duration.
+func WithDefaultTimeout(d time.Duration) Option {
+	return func(c *crawl) {
+		c.opts.defaultTimeout = d
 	}
 }

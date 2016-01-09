@@ -6,6 +6,7 @@ import (
 	"net/http/cookiejar"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ryanuber/go-glob"
 
@@ -21,7 +22,7 @@ type Middleware func(context.Context, *Request, *http.Request) error
 // Crawler - Crawler interface.
 type Crawler interface {
 	// Schedule - Schedules request.
-	// Context is used only during scheduling not execution.
+	// Context is passed to queue in a job.
 	Schedule(context.Context, *Request) error
 
 	// Execute - Makes a http request respecting context deadline.
@@ -126,6 +127,13 @@ func (crawl *crawl) Start() {
 }
 
 func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, err error) {
+	// Set default timeout if enabled and empty in context
+	if _, ok := ctx.Deadline(); !ok && crawl.opts.defaultTimeout > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(crawl.opts.defaultTimeout))
+		defer cancel()
+	}
+
 	// Get http.Request structure
 	httpReq, err := ConstructHTTPRequest(req)
 	if err != nil {
