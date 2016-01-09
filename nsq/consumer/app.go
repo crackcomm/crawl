@@ -154,6 +154,7 @@ func (app *App) Action(c *cli.Context) {
 			if err := app.Queue.Close(); err != nil {
 				glog.Fatalf("Error closing queue: %v", err)
 			}
+			return
 		}
 	}
 }
