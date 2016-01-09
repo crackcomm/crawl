@@ -121,7 +121,7 @@ func (crawl *crawl) Start() {
 
 func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, err error) {
 	// Get http.Request structure
-	request, err := req.HTTPRequest()
+	request, err := ConstructHTTPRequest(req)
 	if err != nil {
 		return
 	}
@@ -135,7 +135,10 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 
 	// Send request and read response
 	err = crawl.httpDo(ctx, request, func(response *http.Response) error {
-		resp = &Response{Response: response}
+		resp = &Response{
+			Request:  req,
+			Response: response,
+		}
 		return nil
 	})
 	if err != nil {

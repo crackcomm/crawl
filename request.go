@@ -24,10 +24,10 @@ type Request struct {
 	Method    string                 `json:"method,omitempty"`
 	Referer   string                 `json:"referer,omitempty"`
 	Form      map[string]string      `json:"form,omitempty"`
+	Header    map[string]string      `json:"header,omitempty"`
 	Raw       bool                   `json:"raw,omitempty"`
 	Callbacks []string               `json:"callbacks,omitempty"`
 	Metadata  map[string]interface{} `json:"metadata,omitempty"`
-	Source    *Response              `json:"-"`
 }
 
 // Callbacks - Helper for creating list of strings (callback names).
@@ -35,10 +35,9 @@ func Callbacks(v ...string) []string {
 	return v
 }
 
-// HTTPRequest - Creates a http.Request structure.
-// If Method is empty it's set "GET".
-func (req *Request) HTTPRequest() (r *http.Request, err error) {
-	u, err := req.GetURL()
+// ConstructHTTPRequest - Constructs a http.Request structure.
+func ConstructHTTPRequest(req *Request) (r *http.Request, err error) {
+	u, err := req.ParseURL()
 	if err != nil {
 		return
 	}
@@ -50,18 +49,24 @@ func (req *Request) HTTPRequest() (r *http.Request, err error) {
 		Header: make(http.Header),
 	}
 
+	for key, value := range req.Header {
+		r.Header.Set(key, value)
+	}
+
 	// Set referer if any
 	if req.Referer != "" {
 		r.Header.Set("Referer", req.Referer)
-	} else if req.Source != nil {
-		r.Header.Set("Referer", req.Source.GetURL().String())
 	}
 
 	// Return now if no form
-	if req.Form == nil {
-		return
+	if req.Form != nil {
+		setRequestForm(req, r)
 	}
 
+	return
+}
+
+func setRequestForm(req *Request, r *http.Request) {
 	// Set Content-Type header
 	r.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 
@@ -83,31 +88,12 @@ func (req *Request) HTTPRequest() (r *http.Request, err error) {
 
 	// Request content length
 	r.ContentLength = int64(data.Len())
-
-	return
 }
 
-// GetMethod - Returns request Method. If empty returns "GET".
-func (req *Request) GetMethod() string {
-	if req.Method == "" {
-		return "GET"
-	}
-	return req.Method
-}
-
-// ResolveURL - Resolves url
-func (req *Request) ResolveURL(uri *url.URL) (u *url.URL, err error) {
-	u, err = req.GetURL()
-	if uri != nil {
-		u = u.ResolveReference(uri)
-	}
-	return
-}
-
-// GetURL - Parses request URL.
+// ParseURL - Parses request URL.
 // If request Source is set, parsed - URL is resolved
 // with reference to source request URL.
-func (req *Request) GetURL() (u *url.URL, err error) {
+func (req *Request) ParseURL() (u *url.URL, err error) {
 	u, err = url.Parse(req.URL)
 	if err != nil {
 		return
@@ -118,10 +104,16 @@ func (req *Request) GetURL() (u *url.URL, err error) {
 			return nil, err
 		}
 		u = ref.ResolveReference(u)
-	} else if src := req.Source; src != nil {
-		u = src.GetURL().ResolveReference(u)
 	}
 	return
+}
+
+// GetMethod - Returns request Method. If empty returns "GET".
+func (req *Request) GetMethod() string {
+	if req.Method == "" {
+		return "GET"
+	}
+	return req.Method
 }
 
 // String - Returns "{method} {url}" formatted string.

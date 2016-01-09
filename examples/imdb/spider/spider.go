@@ -36,7 +36,7 @@ func (spider *imdbSpider) List(ctx context.Context, resp *crawl.Response) (err e
 		href, _ := link.Attr("href")
 		spider.Crawler.Schedule(ctx, &crawl.Request{
 			URL:       href,
-			Source:    resp,
+			Referer:   resp.URL().String(),
 			Callbacks: crawl.Callbacks(Movie),
 		})
 	})
@@ -51,7 +51,7 @@ func (spider *imdbSpider) Movie(ctx context.Context, resp *crawl.Response) (err 
 
 	title := crawl.Text(resp, "h1.header span[itemprop=name]:nth-of-type(1)")
 	year := crawl.Text(resp, "h1.header span a")
-	log.Printf("Response: status=%q title=%q year=%s", resp.GetStatus(), title, year)
+	log.Printf("Response: status=%q title=%q year=%s", resp.Status(), title, year)
 
 	return
 }

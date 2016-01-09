@@ -32,3 +32,6 @@ docs: docs-deps
 	sh -c 'TDC_CRAWL_SCHEDULE_HELP=`crawl-schedule --help` \
 		TDC_SKELETON_HELP=`skeleton --help` \
 			tdc --input docs-templates/ --output .'
+
+example:
+	go run examples/imdb/main.go

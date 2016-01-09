@@ -1,6 +1,7 @@
 package crawl
 
 import (
+	"net/url"
 	"strconv"
 	"strings"
 
@@ -90,7 +91,6 @@ func NodeAttr(attr string) func(int, *goquery.Selection) string {
 // NodeResolveURL - Returns selector which takes href and resolves url.
 // Returns helper for (*goquery.Selection).Each().
 func NodeResolveURL(resp *Response) func(int, *goquery.Selection) string {
-	url := resp.GetURL()
 	return func(_ int, n *goquery.Selection) (href string) {
 		var ok bool
 		href, ok = n.Attr("href")
@@ -101,6 +101,6 @@ func NodeResolveURL(resp *Response) func(int, *goquery.Selection) string {
 		if err != nil {
 			return
 		}
-		return url.ResolveReference(u).String()
+		return resp.URL().ResolveReference(u).String()
 	}
 }

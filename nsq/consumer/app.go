@@ -25,7 +25,7 @@ type App struct {
 	*nsqcrawl.Queue
 
 	// before - Flag requirements checking.
-	before func(c *cli.Context) error
+	before func(c *App) error
 
 	// crawler - Accessed using Crawler() which constructs it on first call
 	// using parameters from commmand line.
@@ -163,7 +163,7 @@ func (app *App) Before(c *cli.Context) error {
 
 	// Use customized before if any
 	if app.before != nil {
-		return app.before(c)
+		return app.before(app)
 	}
 	return beforeApp(c)
 }

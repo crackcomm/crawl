@@ -1,9 +1,6 @@
 package consumer
 
-import (
-	"github.com/codegangsta/cli"
-	"github.com/crackcomm/crawl"
-)
+import "github.com/crackcomm/crawl"
 
 // Option - Consumer app option setter.
 type Option func(*App)
@@ -40,7 +37,7 @@ func WithSpiders(spiders ...Spider) Option {
 }
 
 // WithBefore - Overwrites flag checking before action.
-func WithBefore(fnc func(*cli.Context) error) Option {
+func WithBefore(fnc func(*App) error) Option {
 	return func(app *App) {
 		app.before = fnc
 	}
