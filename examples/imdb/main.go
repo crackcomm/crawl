@@ -14,19 +14,12 @@ import (
 	imdb "github.com/crackcomm/crawl/examples/imdb/spider"
 )
 
-var spiders = []func(crawl.Crawler){
-	imdb.Register,
-}
-
 func main() {
 	c := crawl.New(
 		crawl.WithQueue(crawl.NewQueue(1000)),
 		crawl.WithConcurrency(200),
+		crawl.WithSpiders(imdb.Spider),
 	)
-
-	for _, spider := range spiders {
-		spider(c)
-	}
 
 	if err := c.Schedule(context.Background(), &crawl.Request{
 		URL:       "http://www.imdb.com/chart/top/",

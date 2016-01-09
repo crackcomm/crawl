@@ -16,8 +16,8 @@ var Movie = "imdb_movie"
 // List - IMDB movies list.
 var List = "imdb_list"
 
-// Register - Registers imdb spider.
-func Register(c crawl.Crawler) {
+// Spider - Registers imdb spider.
+func Spider(c crawl.Crawler) {
 	spider := &imdbSpider{Crawler: c}
 	c.Register(Movie, spider.Movie)
 	c.Register(List, spider.List)
@@ -51,7 +51,7 @@ func (spider *imdbSpider) Movie(ctx context.Context, resp *crawl.Response) (err 
 
 	title := crawl.Text(resp, "h1.header span[itemprop=name]:nth-of-type(1)")
 	year := crawl.Text(resp, "h1.header span a")
-	log.Printf("Response: status=%q title=%q year=%s", resp.Status(), title, year)
+	log.Printf("title=%q year=%s", title, year)
 
 	return
 }
