@@ -32,19 +32,19 @@ type Queue struct {
 	memq  crawl.Queue
 }
 
-// Get - Gets job from channel.
-func (queue *Queue) Get() (job crawl.Job, err error) {
-	return queue.memq.Get()
-}
-
 // Schedule - Schedules job in nsq.
 // It will not call job.Done ever.
-func (queue *Queue) Schedule(job crawl.Job) (err error) {
-	r := &request{Request: job.Request()}
-	if deadline, ok := job.Context().Deadline(); ok {
+func (queue *Queue) Schedule(ctx context.Context, r *crawl.Request) (err error) {
+	r := &request{Request: r}
+	if deadline, ok := ctx.Deadline(); ok {
 		r.Deadline = deadline
 	}
 	return queue.Producer.PublishJSON(queue.topic, r)
+}
+
+// Get - Gets job from channel.
+func (queue *Queue) Get() (job crawl.Job, err error) {
+	return queue.memq.Get()
 }
 
 // Close - Closes consumer and producer.

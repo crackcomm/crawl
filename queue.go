@@ -22,7 +22,7 @@ type Queue interface {
 
 	// Schedule - Schedules a Request.
 	// Returns io.ErrClosedPipe if queue is closed.
-	Schedule(Job) error
+	Schedule(context.Context, *Request) error
 
 	// Close - Closes the queue.
 	Close() error

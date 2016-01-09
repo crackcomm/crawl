@@ -6,8 +6,6 @@ import (
 	"net/http"
 	"net/url"
 	"strings"
-
-	"golang.org/x/net/context"
 )
 
 // Request - HTTP Request.
@@ -119,21 +117,4 @@ func (req *Request) GetMethod() string {
 // String - Returns "{method} {url}" formatted string.
 func (req *Request) String() string {
 	return fmt.Sprintf("%s %s", req.GetMethod(), req.URL)
-}
-
-// reqJob - Structure to make Request+Context a Job interface.
-type reqJob struct {
-	req *Request
-	ctx context.Context
-}
-
-func (job *reqJob) Context() context.Context {
-	return job.ctx
-}
-
-func (job *reqJob) Request() *Request {
-	return job.req
-}
-
-func (job *reqJob) Done() {
 }

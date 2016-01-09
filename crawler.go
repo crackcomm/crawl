@@ -222,7 +222,7 @@ func (crawl *crawl) Register(name string, h Handler) {
 }
 
 func (crawl *crawl) Schedule(ctx context.Context, req *Request) error {
-	return crawl.queue.Schedule(&reqJob{ctx: ctx, req: req})
+	return crawl.queue.Schedule(ctx, req)
 }
 
 func (crawl *crawl) Errors() <-chan error {

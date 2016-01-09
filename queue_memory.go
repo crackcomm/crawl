@@ -1,6 +1,11 @@
 package crawl
 
-import "io"
+import (
+	"io"
+
+	"github.com/crackcomm/crawl"
+	"golang.org/x/net/context"
+)
 
 // NewQueue - Makes a new queue.
 // Capacity argument is a capacity of requests channel.
@@ -22,11 +27,11 @@ func (queue *memQueue) Get() (Job, error) {
 	return job, nil
 }
 
-func (queue *memQueue) Schedule(job Job) error {
+func (queue *memQueue) Schedule(ctx context.Context, r *crawl.Request) error {
 	if queue.channel == nil {
 		return io.ErrClosedPipe
 	}
-	queue.channel <- job
+	queue.channel <- &memJob{ctx: ctx, req: r}
 	return nil
 }
 
@@ -35,4 +40,21 @@ func (queue *memQueue) Close() error {
 	queue.channel = nil
 	close(ch)
 	return nil
+}
+
+// memJob - Structure to make Request+Context a Job interface.
+type memJob struct {
+	req *Request
+	ctx context.Context
+}
+
+func (job *memJob) Context() context.Context {
+	return job.ctx
+}
+
+func (job *memJob) Request() *Request {
+	return job.req
+}
+
+func (job *memJob) Done() {
 }
