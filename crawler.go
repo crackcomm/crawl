@@ -15,6 +15,9 @@ import (
 // Handler - Crawler handler.
 type Handler func(context.Context, *Response) error
 
+// Middleware - Crawler middleware.
+type Middleware func(context.Context, *Request, *http.Request) error
+
 // Crawler - Crawler interface.
 type Crawler interface {
 	// Schedule - Schedules request.
@@ -31,6 +34,10 @@ type Crawler interface {
 
 	// Register - Registers crawl handler.
 	Register(name string, h Handler)
+
+	// Middleware - Registers a middleware.
+	// Request is not executed if middleware returns an error.
+	Middleware(Middleware)
 
 	// Start - Starts the crawler.
 	// Crawler will work until queue is empty or closed.
@@ -86,6 +93,9 @@ type crawl struct {
 
 	// patterns - callbacks glob patterns
 	patterns []string
+
+	// middlewares - crawler middlewares.
+	middlewares []Middleware
 }
 
 func (crawl *crawl) Start() {
@@ -117,23 +127,30 @@ func (crawl *crawl) Start() {
 
 func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, err error) {
 	// Get http.Request structure
-	request, err := ConstructHTTPRequest(req)
+	httpReq, err := ConstructHTTPRequest(req)
 	if err != nil {
 		return
 	}
 
+	// Run request middlewares
+	for _, middleware := range crawl.middlewares {
+		if err = middleware(ctx, req, httpReq); err != nil {
+			return
+		}
+	}
+
 	// Copy default headers
 	for name, value := range crawl.opts.headers {
-		if _, has := request.Header[name]; !has {
-			request.Header.Set(name, value)
+		if _, has := httpReq.Header[name]; !has {
+			httpReq.Header.Set(name, value)
 		}
 	}
 
 	// Send request and read response
-	err = crawl.httpDo(ctx, request, func(response *http.Response) error {
+	err = crawl.httpDo(ctx, httpReq, func(httpResp *http.Response) error {
 		resp = &Response{
+			Response: httpResp,
 			Request:  req,
-			Response: response,
 		}
 		return nil
 	})
@@ -150,13 +167,23 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 		}
 	}
 
-	// Run handlers
-	for _, handler := range crawl.getHandlers(req.Callbacks) {
+	if err = crawl.executeHandlers(ctx, resp); err != nil {
+		return nil, err
+	}
+
+	return
+}
+
+func (crawl *crawl) executeHandlers(ctx context.Context, resp *Response) (err error) {
+	handlers := crawl.getHandlers(resp.Request.Callbacks)
+	if len(handlers) == 0 {
+		return
+	}
+	for _, handler := range handlers {
 		if err = handler(ctx, resp); err != nil {
 			return
 		}
 	}
-
 	return
 }
 
@@ -173,6 +200,10 @@ func (crawl *crawl) getHandlers(callbacks []string) (list []Handler) {
 		list = append(list, crawl.handlers[name]...)
 	}
 	return
+}
+
+func (crawl *crawl) Middleware(m Middleware) {
+	crawl.middlewares = append(crawl.middlewares, m)
 }
 
 func (crawl *crawl) Register(name string, h Handler) {

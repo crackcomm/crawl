@@ -36,6 +36,16 @@ func WithSpiders(spiders ...Spider) Option {
 	}
 }
 
+// WithMiddlewares - Registers middlewares on a crawler.
+// It has to be set after WithCrawler (if any).
+func WithMiddlewares(middlewares ...crawl.Middleware) Option {
+	return func(app *App) {
+		for _, middleware := range middlewares {
+			app.Crawler().Middleware(middleware)
+		}
+	}
+}
+
 // WithBefore - Overwrites flag checking before action.
 func WithBefore(fnc func(*App) error) Option {
 	return func(app *App) {
