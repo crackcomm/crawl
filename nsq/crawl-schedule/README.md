@@ -22,13 +22,14 @@ COMMANDS:
    help, h	Shows a list of commands or help for one command
    
 GLOBAL OPTIONS:
-   --nsq-addr 							nsq address [$NSQ_ADDR]
-   --topic "crawl_requests"					crawl requests nsq topic [$TOPIC]
-   --form-value [--form-value option --form-value option]	form value in format (key=value)
-   --metadata [--metadata option --metadata option]		metadata value in format (key=value)
-   --callback [--callback option --callback option]		crawl request callbacks (at least one is required)
+   --nsq-addr 							nsq address (required) [$NSQ_ADDR]
+   --topic "crawl_requests"					crawl requests nsq topic (required) [$TOPIC]
+   --form-value [--form-value option --form-value option]	form value in format (format: key=value)
+   --metadata [--metadata option --metadata option]		metadata value in format (format: key=value)
+   --callback [--callback option --callback option]		crawl request callbacks (required)
    --referer 							crawl request referer
    --method "GET"						crawl request referer
+   --timeout "0"						request timeout
    --help, -h							show help
    --version, -v						print the version
    

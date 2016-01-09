@@ -28,8 +28,8 @@ COMMANDS:
    help, h	Shows a list of commands or help for one command
    
 GLOBAL OPTIONS:
-   --topic 								 [$TOPIC]
-   --channel 								 [$CHANNEL]
+   --topic "crawl_requests"						crawl requests nsq topic (required) [$TOPIC]
+   --channel "default"							crawl requests nsq channel (required) [$CHANNEL]
    --nsq-addr [--nsq-addr option --nsq-addr option]			 [$NSQ_ADDR]
    --nsqlookup-addr [--nsqlookup-addr option --nsqlookup-addr option]	 [$NSQLOOKUP_ADDR]
    --concurrency "100"							 [$CONCURRENCY]
