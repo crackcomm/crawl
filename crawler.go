@@ -1,14 +1,13 @@
 package crawl
 
 import (
-	"fmt"
 	"io"
 	"net/http"
 	"net/http/cookiejar"
 	"strings"
 	"sync"
 
-	"github.com/golang/glog"
+	"github.com/ryanuber/go-glob"
 
 	"golang.org/x/net/context"
 )
@@ -84,6 +83,9 @@ type crawl struct {
 	opts       *options
 
 	queue Queue
+
+	// patterns - callbacks glob patterns
+	patterns []string
 }
 
 func (crawl *crawl) Start() {
@@ -99,12 +101,6 @@ func (crawl *crawl) Start() {
 				} else if err != nil {
 					crawl.errorsChan <- err
 					return
-				}
-
-				if glog.V(3) {
-					req := job.Request()
-					glog.Infof("request method=%q url=%q callbacks=%q",
-						req.GetMethod(), req.URL, strings.Join(req.Callbacks, ","))
 				}
 
 				if _, err := crawl.Execute(job.Context(), job.Request()); err != nil {
@@ -155,23 +151,33 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 	}
 
 	// Run handlers
-	for _, cb := range req.Callbacks {
-		if handlers, ok := crawl.handlers[cb]; ok && len(handlers) >= 1 {
-			for _, handler := range handlers {
-				err = handler(ctx, resp)
-				if err != nil {
-					return
-				}
-			}
-		} else {
-			return nil, fmt.Errorf("Handlers for %v was not found", cb)
+	for _, handler := range crawl.getHandlers(req.Callbacks) {
+		if err = handler(ctx, resp); err != nil {
+			return
 		}
 	}
 
 	return
 }
 
+func (crawl *crawl) getHandlers(callbacks []string) (list []Handler) {
+	for _, pattern := range crawl.patterns {
+		for _, name := range callbacks {
+			if glob.Glob(pattern, name) {
+				list = append(list, crawl.handlers[pattern]...)
+			}
+		}
+	}
+	for _, name := range callbacks {
+		list = append(list, crawl.handlers[name]...)
+	}
+	return
+}
+
 func (crawl *crawl) Register(name string, h Handler) {
+	if _, ok := crawl.handlers[name]; !ok && strings.Contains(name, "*") {
+		crawl.patterns = append(crawl.patterns, name)
+	}
 	crawl.handlers[name] = append(crawl.handlers[name], h)
 }
 
