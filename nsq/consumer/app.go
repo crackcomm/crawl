@@ -122,7 +122,9 @@ func (app *App) Action(c *cli.Context) {
 	}
 
 	for _, spiderConstructor := range app.spiderConstructors {
-		spiderConstructor(app)(crawler)
+		if spider := spiderConstructor(app); spider != nil {
+			spider(crawler)
+		}
 	}
 
 	go func() {
