@@ -27,7 +27,7 @@ func main() {
 
 	// Start consumer
 	app := consumer.New(
-		consumer.WithSpiders(imdb.Register),
+		consumer.WithSpiders(imdb.Spider),
 	)
 
 	if err := app.Run(os.Args); err != nil {
