@@ -45,6 +45,8 @@ func (r *Response) BodyBuffer() (body *bytes.Buffer, err error) {
 		if err != nil {
 			return nil, err
 		}
+		// close response body
+		r.Response.Body.Close()
 	}
 	return r.body, nil
 }
@@ -81,6 +83,9 @@ func (r *Response) Find(selector string) *goquery.Selection {
 // Close - Closes response body.
 func (r *Response) Close() error {
 	buffersPool.Put(r.body)
+	// close response body
+	// even it should be closed after a read
+	// but to make sure we can just close again
 	r.Response.Body.Close()
 	return nil
 }
