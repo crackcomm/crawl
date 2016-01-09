@@ -3,7 +3,6 @@ package crawl
 import (
 	"io"
 
-	"github.com/crackcomm/crawl"
 	"golang.org/x/net/context"
 )
 
@@ -27,7 +26,7 @@ func (queue *memQueue) Get() (Job, error) {
 	return job, nil
 }
 
-func (queue *memQueue) Schedule(ctx context.Context, r *crawl.Request) error {
+func (queue *memQueue) Schedule(ctx context.Context, r *Request) error {
 	if queue.channel == nil {
 		return io.ErrClosedPipe
 	}
