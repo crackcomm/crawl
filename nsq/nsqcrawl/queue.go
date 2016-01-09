@@ -1,6 +1,7 @@
 package nsqcrawl
 
 import (
+	"io"
 	"time"
 
 	"github.com/golang/glog"
@@ -16,7 +17,7 @@ func NewQueue(topic, channel string, maxInFlight int) *Queue {
 	q := &Queue{
 		Consumer: consumer.New(),
 		Producer: producer.New(),
-		memq:     crawl.NewQueue(maxInFlight + 1),
+		channel:  make(chan *nsqJob, maxInFlight+1),
 		topic:    topic,
 	}
 	q.Consumer.Register(topic, channel, maxInFlight, q.nsqHandler)
@@ -36,14 +37,14 @@ type Queue struct {
 	*consumer.Consumer
 	*producer.Producer
 
-	topic string
-	memq  crawl.Queue
+	topic   string
+	channel chan *nsqJob
 }
 
 // Schedule - Schedules job in nsq.
 // It will not call job.Done ever.
-func (queue *Queue) Schedule(ctx context.Context, r *crawl.Request) (err error) {
-	r := &request{Request: r}
+func (queue *Queue) Schedule(ctx context.Context, req *crawl.Request) (err error) {
+	r := &request{Request: req}
 	if deadline, ok := ctx.Deadline(); ok {
 		r.Deadline = deadline
 	}
@@ -51,8 +52,12 @@ func (queue *Queue) Schedule(ctx context.Context, r *crawl.Request) (err error) 
 }
 
 // Get - Gets job from channel.
-func (queue *Queue) Get() (job crawl.Job, err error) {
-	return queue.memq.Get()
+func (queue *Queue) Get() (crawl.Job, error) {
+	job, ok := <-queue.channel
+	if !ok {
+		return nil, io.EOF
+	}
+	return job, nil
 }
 
 // Close - Closes consumer and producer.
@@ -63,8 +68,8 @@ func (queue *Queue) Close() (err error) {
 	if queue.Consumer != nil {
 		queue.Consumer.Stop()
 	}
-	if queue.memq != nil {
-		err = queue.memq.Close()
+	if queue.channel != nil {
+		close(queue.channel)
 	}
 	return
 }
@@ -97,7 +102,7 @@ func (queue *Queue) nsqHandler(msg *consumer.Message) {
 	ctx = consumer.WithMessage(ctx, msg)
 
 	// Schedule job in memory
-	queue.memq.Schedule(&nsqJob{msg: msg, req: req.Request, ctx: ctx})
+	queue.channel <- &nsqJob{msg: msg, req: req.Request, ctx: ctx}
 }
 
 type request struct {
