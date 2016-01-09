@@ -165,6 +165,7 @@ func (crawl *crawl) getHandlers(callbacks []string) (list []Handler) {
 		for _, name := range callbacks {
 			if glob.Glob(pattern, name) {
 				list = append(list, crawl.handlers[pattern]...)
+				break
 			}
 		}
 	}
