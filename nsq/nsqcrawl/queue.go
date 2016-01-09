@@ -1,6 +1,8 @@
 package nsqcrawl
 
 import (
+	"time"
+
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
@@ -38,7 +40,11 @@ func (queue *Queue) Get() (job crawl.Job, err error) {
 // Schedule - Schedules job in nsq.
 // It will not call job.Done ever.
 func (queue *Queue) Schedule(job crawl.Job) (err error) {
-	return queue.Producer.PublishJSON(queue.topic, job.Request())
+	r := &request{Request: job.Request()}
+	if deadline, ok := job.Context().Deadline(); ok {
+		r.Deadline = deadline
+	}
+	return queue.Producer.PublishJSON(queue.topic, r)
 }
 
 // Close - Closes consumer and producer.
@@ -49,7 +55,7 @@ func (queue *Queue) Close() (err error) {
 }
 
 func (queue *Queue) nsqHandler(msg *consumer.Message) {
-	req := new(crawl.Request)
+	req := new(request)
 	err := msg.ReadJSON(req)
 	if err != nil {
 		glog.V(3).Infof("nsq json (%s) error: %v", msg.Body, err)
@@ -57,11 +63,31 @@ func (queue *Queue) nsqHandler(msg *consumer.Message) {
 		return
 	}
 
+	// Check if deadline exceeded
+	if !req.Deadline.IsZero() && time.Now().After(req.Deadline) {
+		glog.V(3).Infof("request deadline exceeded (%s)", msg.Body)
+		msg.GiveUp()
+		return
+	}
+
+	// Request context
+	ctx := context.Background()
+
+	// Set request deadline
+	if !req.Deadline.IsZero() {
+		ctx, _ = context.WithDeadline(ctx, req.Deadline)
+	}
+
 	// Set nsq message in context
-	ctx := consumer.WithMessage(context.Background(), msg)
+	ctx = consumer.WithMessage(ctx, msg)
 
 	// Schedule job in memory
-	queue.memq.Schedule(&nsqJob{msg: msg, req: req, ctx: ctx})
+	queue.memq.Schedule(&nsqJob{msg: msg, req: req.Request, ctx: ctx})
+}
+
+type request struct {
+	Request  *crawl.Request `json:"request,omitempty"`
+	Deadline time.Time      `json:"deadline,omitempty"`
 }
 
 type nsqJob struct {
