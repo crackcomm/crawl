@@ -23,6 +23,14 @@ func NewQueue(topic, channel string, maxInFlight int) *Queue {
 	return q
 }
 
+// NewProducer - Creates queue producer.
+func NewProducer(topic string) *Queue {
+	return &Queue{
+		Producer: producer.New(),
+		topic:    topic,
+	}
+}
+
 // Queue - NSQ Queue.
 type Queue struct {
 	*consumer.Consumer
@@ -49,9 +57,16 @@ func (queue *Queue) Get() (job crawl.Job, err error) {
 
 // Close - Closes consumer and producer.
 func (queue *Queue) Close() (err error) {
-	queue.Producer.Stop()
-	queue.Consumer.Stop()
-	return queue.memq.Close()
+	if queue.Producer != nil {
+		queue.Producer.Stop()
+	}
+	if queue.Consumer != nil {
+		queue.Consumer.Stop()
+	}
+	if queue.memq != nil {
+		err = queue.memq.Close()
+	}
+	return
 }
 
 func (queue *Queue) nsqHandler(msg *consumer.Message) {
