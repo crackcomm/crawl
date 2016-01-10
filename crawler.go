@@ -56,8 +56,12 @@ type Crawler interface {
 func New(opts ...Option) Crawler {
 	c := &crawl{
 		handlers:   make(map[string][]Handler),
-		opts:       &options{concurrency: 1000, queueCapacity: 10000, headers: DefaultHeaders},
 		errorsChan: make(chan error, 10000),
+		opts: &options{
+			concurrency:   1000,
+			queueCapacity: 10000,
+			headers:       DefaultHeaders,
+		},
 	}
 	for _, opt := range opts {
 		opt(c)
