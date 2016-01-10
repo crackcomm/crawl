@@ -133,7 +133,7 @@ func (app *App) Action(c *cli.Context) {
 
 	go func() {
 		for err := range crawler.Errors() {
-			glog.Warningf("Crawl error: %v", err)
+			glog.Warningf("crawl %v", err)
 		}
 	}()
 
