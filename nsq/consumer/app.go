@@ -81,17 +81,21 @@ func New(opts ...Option) *cli.App {
 	cliapp.Version = "0.0.1"
 	cliapp.Usage = "nsq crawl consumer"
 	cliapp.Flags = Flags
-	cliapp.Before = app.Before
 	cliapp.Action = app.Action
 	return cliapp
 }
 
 // Action - Command line action.
 func (app *App) Action(c *cli.Context) {
+	app.Ctx = c
 	app.Queue = nsqcrawl.NewQueue(c.String("topic"), c.String("channel"), c.Int("concurrency"))
 
 	for _, opt := range app.opts {
 		opt(app)
+	}
+
+	if err := app.Before(c); err != nil {
+		glog.Fatal(err)
 	}
 
 	crawler := app.Crawler()
@@ -160,11 +164,7 @@ func (app *App) Action(c *cli.Context) {
 }
 
 // Before - Executed before action.
-func (app *App) Before(c *cli.Context) error {
-	// Set application context
-	app.Ctx = c
-
-	// Use customized before if any
+func (app *App) Before(c *cli.Context) (err error) {
 	if app.before != nil {
 		return app.before(app)
 	}
