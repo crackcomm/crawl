@@ -18,19 +18,18 @@ install-crawl-schedule:
 
 install: install-crawl-schedule
 
-docs-deps: install
-	go install github.com/crackcomm/tdc
-	go install $(REPO)/nsq/consumer/skeleton
-
 docker-images: dist
 	cd $(OUTPUT)/crawl-schedule && docker build -t crackcomm/crawl-schedule .
 
 docker-deploy: docker-images
 	docker push crackcomm/crawl-schedule:latest
 
+docs-deps:
+	go install github.com/crackcomm/tdc
+
 docs: docs-deps
-	sh -c 'TDC_CRAWL_SCHEDULE_HELP=`crawl-schedule --help` \
-		TDC_SKELETON_HELP=`skeleton --help` \
+	sh -c 'TDC_CRAWL_SCHEDULE_HELP=`go run nsq/crawl-schedule/main.go --help` \
+		TDC_SKELETON_HELP=`go run nsq/consumer/skeleton/main.go --help` \
 			tdc --input docs-templates/ --output .'
 
 example:
