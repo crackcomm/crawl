@@ -36,6 +36,14 @@ func WithSpiders(spiders ...Spider) Option {
 	}
 }
 
+// WithHandler - Registers crawler handler.
+// It has to be set after WithCrawler (if any).
+func WithHandler(name string, h crawl.Handler) Option {
+	return func(app *App) {
+		app.Crawler().Register(name, h)
+	}
+}
+
 // WithMiddlewares - Registers middlewares on a crawler.
 // It has to be set after WithCrawler (if any).
 func WithMiddlewares(middlewares ...crawl.Middleware) Option {
