@@ -11,6 +11,7 @@ import (
 	"github.com/ryanuber/go-glob"
 
 	"golang.org/x/net/context"
+	"golang.org/x/net/context/ctxhttp"
 )
 
 // Handler - Crawler handler.
@@ -158,16 +159,14 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 		}
 	}
 
-	// Send request and read response
-	err = crawl.httpDo(ctx, httpReq, func(httpResp *http.Response) error {
-		resp = &Response{
-			Response: httpResp,
-			Request:  req,
-		}
-		return nil
-	})
+	httpResp, err := ctxhttp.Do(ctx, crawl.client, httpReq)
 	if err != nil {
 		return
+	}
+
+	resp = &Response{
+		Response: httpResp,
+		Request:  req,
 	}
 	defer resp.Close()
 
@@ -235,24 +234,4 @@ func (crawl *crawl) Errors() <-chan error {
 
 func (crawl *crawl) Handlers() map[string][]Handler {
 	return crawl.handlers
-}
-
-func (crawl *crawl) httpDo(ctx context.Context, req *http.Request, f func(*http.Response) error) error {
-	c := make(chan error, 1)
-	go func() {
-		resp, err := crawl.client.Do(req)
-		if err != nil {
-			c <- err
-		} else {
-			c <- f(resp)
-		}
-	}()
-	select {
-	case <-ctx.Done():
-		crawl.transport.CancelRequest(req)
-		<-c
-		return ctx.Err()
-	case err := <-c:
-		return err
-	}
 }
