@@ -1,9 +1,12 @@
 package crawl
 
 import (
+	"fmt"
 	"io"
+	"math/rand"
 	"net/http"
 	"net/http/cookiejar"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -159,7 +162,25 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 		}
 	}
 
-	httpResp, err := ctxhttp.Do(ctx, crawl.client, httpReq)
+	client := crawl.client
+	if addrs, ok := ProxyFromContext(ctx); ok && len(addrs) > 0 {
+		t := &http.Transport{
+			Proxy: func(_ *http.Request) (*url.URL, error) {
+				addr := addrs[rand.Intn(len(addrs))]
+				u, err := url.Parse(addr)
+				if err != nil || !strings.HasPrefix(u.Scheme, "http") {
+					u, err = url.Parse("http://" + addr)
+				}
+				if err != nil {
+					return nil, fmt.Errorf("invalid proxy address %q: %v", addr, err)
+				}
+				return u, nil
+			},
+		}
+		client = &http.Client{Transport: t}
+	}
+
+	httpResp, err := ctxhttp.Do(ctx, client, httpReq)
 	if err != nil {
 		return
 	}
