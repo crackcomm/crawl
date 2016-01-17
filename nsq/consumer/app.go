@@ -3,6 +3,7 @@ package consumer
 
 import (
 	"errors"
+	"fmt"
 	"os"
 	"os/signal"
 
@@ -100,29 +101,8 @@ func (app *App) Action(c *cli.Context) {
 
 	crawler := app.Crawler()
 
-	nsqAddr := c.StringSlice("nsq-addr")[0]
-	if err := app.Queue.Producer.Connect(nsqAddr); err != nil {
-		glog.Fatalf("Error connecting producer to %q: %v", nsqAddr, err)
-	}
-
-	if addrs := c.StringSlice("nsq-addr"); len(addrs) != 0 {
-		for _, addr := range addrs {
-			glog.V(3).Infof("Connecting to nsq %s", addr)
-			if err := app.Queue.Consumer.Connect(addr); err != nil {
-				glog.Fatalf("Error connecting to nsq %q: %v", addr, err)
-			}
-			glog.V(3).Infof("Connected to nsq %s", addr)
-		}
-	}
-
-	if addrs := c.StringSlice("nsqlookup-addr"); len(addrs) != 0 {
-		for _, addr := range addrs {
-			glog.V(3).Infof("Connecting to nsq lookup %s", addr)
-			if err := app.Queue.Consumer.ConnectLookupd(addr); err != nil {
-				glog.Fatalf("Error connecting to nsq lookup %q: %v", addr, err)
-			}
-			glog.V(3).Infof("Connected to nsq lookup %s", addr)
-		}
+	if err := app.connectNSQ(c); err != nil {
+		glog.Fatal(err)
 	}
 
 	for _, spiderConstructor := range app.spiderConstructors {
@@ -161,6 +141,35 @@ func (app *App) Action(c *cli.Context) {
 			return
 		}
 	}
+}
+
+func (app *App) connectNSQ(c *cli.Context) (err error) {
+	nsqAddr := c.StringSlice("nsq-addr")[0]
+	if err := app.Queue.Producer.Connect(nsqAddr); err != nil {
+		return fmt.Errorf("Error connecting producer to %q: %v", nsqAddr, err)
+	}
+
+	if addrs := c.StringSlice("nsq-addr"); len(addrs) != 0 {
+		for _, addr := range addrs {
+			glog.V(3).Infof("Connecting to nsq %s", addr)
+			if err := app.Queue.Consumer.Connect(addr); err != nil {
+				return fmt.Errorf("Error connecting to nsq %q: %v", addr, err)
+			}
+			glog.V(3).Infof("Connected to nsq %s", addr)
+		}
+	}
+
+	if addrs := c.StringSlice("nsqlookup-addr"); len(addrs) != 0 {
+		for _, addr := range addrs {
+			glog.V(3).Infof("Connecting to nsq lookup %s", addr)
+			if err := app.Queue.Consumer.ConnectLookupd(addr); err != nil {
+				return fmt.Errorf("Error connecting to nsq lookup %q: %v", addr, err)
+			}
+			glog.V(3).Infof("Connected to nsq lookup %s", addr)
+		}
+	}
+
+	return
 }
 
 // Before - Executed before action.
