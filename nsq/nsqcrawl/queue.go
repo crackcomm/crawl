@@ -4,6 +4,8 @@ import (
 	"io"
 	"time"
 
+	"google.golang.org/grpc/metadata"
+
 	"github.com/golang/glog"
 	"golang.org/x/net/context"
 
@@ -44,7 +46,8 @@ type Queue struct {
 // Schedule - Schedules job in nsq.
 // It will not call job.Done ever.
 func (queue *Queue) Schedule(ctx context.Context, req *crawl.Request) (err error) {
-	r := &request{Request: req}
+	md, _ := metadata.FromContext(ctx)
+	r := &request{Request: req, Metadata: md}
 	if deadline, ok := ctx.Deadline(); ok {
 		r.Deadline = deadline
 	}
@@ -101,6 +104,11 @@ func (queue *Queue) nsqHandler(msg *consumer.Message) {
 	// Set nsq message in context
 	ctx = consumer.WithMessage(ctx, msg)
 
+	// Set metadata in context
+	if len(req.Metadata) > 0 {
+		ctx = metadata.NewContext(ctx, req.Metadata)
+	}
+
 	// Schedule job in memory
 	queue.channel <- &nsqJob{msg: msg, req: req.Request, ctx: ctx}
 }
@@ -108,6 +116,7 @@ func (queue *Queue) nsqHandler(msg *consumer.Message) {
 type request struct {
 	Request  *crawl.Request `json:"request,omitempty"`
 	Deadline time.Time      `json:"deadline,omitempty"`
+	Metadata metadata.MD    `json:"metadata,omitempty"`
 }
 
 type nsqJob struct {
