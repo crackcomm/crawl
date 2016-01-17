@@ -28,7 +28,7 @@ type App struct {
 	before func(c *App) error
 
 	// crawler - Accessed using Crawler() which constructs it on first call
-	// using parameters from commmand line.
+	// using parameters from command line.
 	crawler crawl.Crawler
 
 	// crawlerConstructor - Constructs a crawler. Called only once in Crawler().
