@@ -11,6 +11,8 @@ import (
 	"strings"
 	"time"
 
+	"google.golang.org/grpc/metadata"
+
 	"golang.org/x/net/context"
 
 	"github.com/codegangsta/cli"
@@ -103,7 +105,7 @@ func main() {
 			glog.Fatalf("Form values error: %v", err)
 		}
 
-		metadata, err := listToMap(c.StringSlice("metadata"))
+		md, err := listToMap(c.StringSlice("metadata"))
 		if err != nil {
 			glog.Fatalf("Metadata error: %v", err)
 		}
@@ -114,15 +116,17 @@ func main() {
 			Referer:   c.String("referer"),
 			Callbacks: c.StringSlice("callback"),
 			Form:      form,
-			Metadata:  mapStringsToInterfaces(metadata),
+		}
+
+		ctx := context.Background()
+		if len(md) > 0 {
+			ctx = metadata.NewContext(ctx, mapToMd(md))
 		}
 
 		if glog.V(3) {
 			body, _ := json.MarshalIndent(request, "", "  ")
 			glog.Infof("Scheduling request: %s", body)
 		}
-
-		ctx := context.Background()
 
 		// Set context deadline
 		if timeout := c.Duration("timeout"); timeout > 0 {
@@ -152,6 +156,14 @@ func main() {
 	if err := app.Run(os.Args); err != nil {
 		glog.Fatal(err)
 	}
+}
+
+func mapToMd(input map[string]string) (md metadata.MD) {
+	md = make(metadata.MD)
+	for key, value := range input {
+		md[key] = []string{value}
+	}
+	return
 }
 
 func listToMap(list []string) (result map[string]string, err error) {
