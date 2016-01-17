@@ -45,9 +45,11 @@ type Crawler interface {
 	Middleware(Middleware)
 
 	// Start - Starts the crawler.
-	// Crawler will work until queue is empty or closed.
 	// All errors should be received from Errors() channel.
 	Start()
+
+	// Close - Closes the queue and the crawler.
+	Close() error
 
 	// Errors - Returns channel that will receive all crawl errors.
 	// Only errors from queued requests are here.
@@ -247,6 +249,13 @@ func (crawl *crawl) Register(name string, h Handler) {
 
 func (crawl *crawl) Schedule(ctx context.Context, req *Request) error {
 	return crawl.queue.Schedule(ctx, req)
+}
+
+func (crawl *crawl) Close() error {
+	if crawl.queue == nil {
+		return nil
+	}
+	return crawl.queue.Close()
 }
 
 func (crawl *crawl) Errors() <-chan error {
