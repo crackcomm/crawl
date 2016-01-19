@@ -9,7 +9,6 @@ import (
 	"net/url"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/ryanuber/go-glob"
 
@@ -140,7 +139,7 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 	// Set default timeout if enabled and empty in context
 	if _, ok := ctx.Deadline(); !ok && crawl.opts.defaultTimeout > 0 {
 		var cancel context.CancelFunc
-		ctx, cancel = context.WithDeadline(ctx, time.Now().Add(crawl.opts.defaultTimeout))
+		ctx, cancel = context.WithTimeout(ctx, crawl.opts.defaultTimeout)
 		defer cancel()
 	}
 

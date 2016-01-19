@@ -9,7 +9,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-	"time"
 
 	"google.golang.org/grpc/metadata"
 
@@ -130,7 +129,7 @@ func main() {
 
 		// Set context deadline
 		if timeout := c.Duration("timeout"); timeout > 0 {
-			ctx, _ = context.WithDeadline(ctx, time.Now().Add(timeout))
+			ctx, _ = context.WithTimeout(ctx, timeout)
 		}
 
 		// Create nsq queue
