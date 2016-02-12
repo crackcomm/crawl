@@ -17,7 +17,7 @@ type Job interface {
 // Queue - Requests queue.
 type Queue interface {
 	// Get - Gets request from Queue channel.
-	// Returns io.EOF if queue is done/closed.
+	// Returns io.EOF if queue is empty.
 	Get() (Job, error)
 
 	// Schedule - Schedules a Request.

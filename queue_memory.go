@@ -2,6 +2,7 @@ package crawl
 
 import (
 	"io"
+	"sync"
 
 	"golang.org/x/net/context"
 )
@@ -9,17 +10,22 @@ import (
 // NewQueue - Makes a new queue.
 // Capacity argument is a capacity of requests channel.
 func NewQueue(capacity int) Queue {
+	jobs := make(chan Job, capacity)
 	return &memQueue{
-		channel: make(chan Job, capacity),
+		writeChan: jobs,
+		readChan:  jobs,
+		mutex:     new(sync.RWMutex),
 	}
 }
 
 type memQueue struct {
-	channel chan Job
+	writeChan chan Job
+	readChan  chan Job
+	mutex     *sync.RWMutex
 }
 
 func (queue *memQueue) Get() (Job, error) {
-	job, ok := <-queue.channel
+	job, ok := <-queue.readChan
 	if !ok {
 		return nil, io.EOF
 	}
@@ -27,18 +33,28 @@ func (queue *memQueue) Get() (Job, error) {
 }
 
 func (queue *memQueue) Schedule(ctx context.Context, r *Request) error {
-	if queue.channel == nil {
+	// We are locking the mutex so we can avoid writes to closed channel.
+	// Close will change writeChan to nil after closing it and requests
+	// will be drained from readChan (still the same but closed channel).
+	queue.mutex.RLock()
+	defer queue.mutex.RUnlock()
+	if queue.writeChan == nil {
 		return io.ErrClosedPipe
 	}
-	queue.channel <- &memJob{ctx: ctx, req: r}
+	queue.writeChan <- &memJob{ctx: ctx, req: r}
 	return nil
 }
 
-func (queue *memQueue) Close() error {
-	ch := queue.channel
-	queue.channel = nil
-	close(ch)
-	return nil
+func (queue *memQueue) Close() (err error) {
+	queue.mutex.Lock()
+	defer queue.mutex.Unlock()
+	if queue.writeChan == nil {
+		return
+	}
+	channel := queue.writeChan
+	queue.writeChan = nil
+	close(channel)
+	return
 }
 
 // memJob - Structure to make Request+Context a Job interface.
