@@ -1,14 +1,11 @@
 package crawl
 
-import (
-	"io"
-	"os"
-)
+import "os"
 
 // WriteResponseFile - Reads response body to memory and writes to file.
 func WriteResponseFile(r *Response, fname string) (err error) {
 	// Read response body
-	body, err := r.BodyBuffer()
+	body, err := r.Bytes()
 	if err != nil {
 		return
 	}
@@ -17,7 +14,7 @@ func WriteResponseFile(r *Response, fname string) (err error) {
 		return
 	}
 	defer f.Close()
-	_, err = io.Copy(f, body)
+	_, err = f.Write(body)
 	if err != nil {
 		return
 	}
