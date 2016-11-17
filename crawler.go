@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"io"
 	"math/rand"
+	"net"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/ryanuber/go-glob"
 
@@ -72,9 +74,20 @@ func New(opts ...Option) Crawler {
 		opt(c)
 	}
 	if c.transport == nil {
-		c.transport = new(http.Transport)
+		c.transport = &http.Transport{
+			Dial: (&net.Dialer{
+				Timeout:   c.opts.defaultTimeout,
+				KeepAlive: c.opts.defaultTimeout,
+			}).Dial,
+			TLSHandshakeTimeout:   c.opts.defaultTimeout,
+			ResponseHeaderTimeout: c.opts.defaultTimeout,
+			ExpectContinueTimeout: time.Second,
+		}
 	}
-	c.client = &http.Client{Transport: c.transport}
+	c.client = &http.Client{
+		Timeout:   c.opts.defaultTimeout,
+		Transport: c.transport,
+	}
 	if c.client.Jar == nil {
 		c.client.Jar, _ = cookiejar.New(nil)
 	}
@@ -136,13 +149,6 @@ func (crawl *crawl) Start() {
 }
 
 func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, err error) {
-	// Set default timeout if enabled and empty in context
-	if _, ok := ctx.Deadline(); !ok && crawl.opts.defaultTimeout > 0 {
-		var cancel context.CancelFunc
-		ctx, cancel = context.WithTimeout(ctx, crawl.opts.defaultTimeout)
-		defer cancel()
-	}
-
 	// Get http.Request structure
 	httpReq, err := ConstructHTTPRequest(req)
 	if err != nil {
@@ -165,7 +171,10 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 
 	client := crawl.client
 	if addrs, ok := ProxyFromContext(ctx); ok && len(addrs) > 0 {
-		client = &http.Client{Transport: transportFromProxies(addrs)}
+		client = &http.Client{
+			Timeout:   crawl.opts.defaultTimeout,
+			Transport: crawl.transportFromProxies(addrs),
+		}
 	}
 
 	httpResp, err := ctxhttp.Do(ctx, client, httpReq)
@@ -194,8 +203,15 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 	return
 }
 
-func transportFromProxies(addrs []string) *http.Transport {
+func (crawl *crawl) transportFromProxies(addrs []string) *http.Transport {
 	return &http.Transport{
+		Dial: (&net.Dialer{
+			Timeout:   crawl.opts.defaultTimeout,
+			KeepAlive: crawl.opts.defaultTimeout,
+		}).Dial,
+		TLSHandshakeTimeout:   crawl.opts.defaultTimeout,
+		ResponseHeaderTimeout: crawl.opts.defaultTimeout,
+		ExpectContinueTimeout: time.Second,
 		Proxy: func(_ *http.Request) (*url.URL, error) {
 			addr := addrs[rand.Intn(len(addrs))]
 			u, err := url.Parse(addr)

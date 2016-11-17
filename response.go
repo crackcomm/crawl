@@ -2,10 +2,9 @@ package crawl
 
 import (
 	"bytes"
-	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
-	"sync"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -17,47 +16,25 @@ type Response struct {
 	*Request
 	*http.Response
 	doc  *goquery.Document
-	body *bytes.Buffer
-}
-
-var buffersPool = sync.Pool{
-	New: func() interface{} {
-		return new(bytes.Buffer)
-	},
+	body []byte
 }
 
 // ParseHTML - Reads response body and parses it as HTML.
 func (r *Response) ParseHTML() (err error) {
-	body, err := r.BodyBuffer()
+	body, err := r.Bytes()
 	if err != nil {
 		return
 	}
-	r.doc, err = goquery.NewDocumentFromReader(body)
+	r.doc, err = goquery.NewDocumentFromReader(bytes.NewBuffer(body))
 	return
 }
 
-// BodyBuffer - Reads response body and returns body buffer.
-func (r *Response) BodyBuffer() (body *bytes.Buffer, err error) {
+// Bytes - Reads response body and returns byte array.
+func (r *Response) Bytes() (body []byte, err error) {
 	if r.body == nil {
-		r.body = buffersPool.Get().(*bytes.Buffer)
-		r.body.Reset()
-		_, err = io.Copy(r.body, r.Response.Body)
-		if err != nil {
-			return nil, err
-		}
-		// close response body
-		r.Response.Body.Close()
+		err = r.readBody()
 	}
-	return r.body, nil
-}
-
-// BodyBytes - Reads response body and returns byte array.
-func (r *Response) BodyBytes() (body []byte, err error) {
-	b, err := r.BodyBuffer()
-	if err != nil {
-		return
-	}
-	return b.Bytes(), nil
+	return r.body, err
 }
 
 // Status - Gets response status.
@@ -82,12 +59,18 @@ func (r *Response) Find(selector string) *goquery.Selection {
 
 // Close - Closes response body.
 func (r *Response) Close() error {
-	if r.body != nil {
-		buffersPool.Put(r.body)
-	}
 	// close response body
-	// even it should be closed after a read
+	// even though it should be closed after a read
 	// but to make sure we can just close again
-	r.Response.Body.Close()
-	return nil
+	return r.Response.Body.Close()
+}
+
+// readBody - Reads response body to `r.body`.
+func (r *Response) readBody() (err error) {
+	if r.body != nil {
+		return
+	}
+	defer r.Response.Body.Close()
+	r.body, err = ioutil.ReadAll(r.Response.Body)
+	return
 }
