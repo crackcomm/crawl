@@ -9,22 +9,24 @@ import (
 )
 
 // Request - HTTP Request.
-// Method is "GET" by default.
-// URL can be absolute URL or a relative to source URL.
-// If Raw is set to false, it means we expect HTML response
-// and crawler, if request will be successfull will parse
-// Response body as HTML.
-// If Form is not empty, request will be send with POST method (if empty)
-// and with form encoded body.
 // Multipart form is not implemented.
 type Request struct {
-	URL       string            `json:"url,omitempty"`
-	Method    string            `json:"method,omitempty"`
-	Referer   string            `json:"referer,omitempty"`
-	Form      map[string]string `json:"form,omitempty"`
-	Header    map[string]string `json:"header,omitempty"`
-	Raw       bool              `json:"raw,omitempty"`
-	Callbacks []string          `json:"callbacks,omitempty"`
+	// URL - It can be absolute URL or a relative to source URL if referer is set.
+	URL string `json:"url,omitempty"`
+	// Method - "GET" by default.
+	Method string `json:"method,omitempty"`
+	// Referer - Request referer.
+	Referer string `json:"referer,omitempty"`
+	// Form - Form values which set as request body.
+	Form url.Values `json:"form,omitempty"`
+	// Query - Form values which set as url query.
+	Query url.Values `json:"query,omitempty"`
+	// Header - Header values.
+	Header map[string]string `json:"header,omitempty"`
+	// Raw - when set to false, it means we expect HTML response
+	Raw bool `json:"raw,omitempty"`
+	// Callbacks - Crawl callback list.
+	Callbacks []string `json:"callbacks,omitempty"`
 }
 
 // Callbacks - Helper for creating list of strings (callback names).
@@ -46,6 +48,18 @@ func ConstructHTTPRequest(req *Request) (r *http.Request, err error) {
 		Header: make(http.Header),
 	}
 
+	if req.Form != nil {
+		setRequestForm(req, r)
+	}
+
+	if req.Query != nil {
+		r.URL.RawQuery = req.Query.Encode()
+	}
+
+	if r.Method == "" && req.Form != nil {
+		r.Method = "POST"
+	}
+
 	for key, value := range req.Header {
 		r.Header.Set(key, value)
 	}
@@ -53,11 +67,6 @@ func ConstructHTTPRequest(req *Request) (r *http.Request, err error) {
 	// Set referer if any
 	if req.Referer != "" {
 		r.Header.Set("Referer", req.Referer)
-	}
-
-	// Return now if no form
-	if req.Form != nil {
-		setRequestForm(req, r)
 	}
 
 	return
@@ -73,14 +82,8 @@ func setRequestForm(req *Request, r *http.Request) {
 		req.Method = "POST"
 	}
 
-	// Copy form values to request form
-	formdata := make(url.Values)
-	for key, value := range req.Form {
-		formdata.Set(key, value)
-	}
-
 	// Set request body
-	data := strings.NewReader(formdata.Encode())
+	data := strings.NewReader(req.Form.Encode())
 	r.Body = ioutil.NopCloser(data)
 
 	// Request content length

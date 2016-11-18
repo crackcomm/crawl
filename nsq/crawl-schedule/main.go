@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -99,27 +100,26 @@ func main() {
 		return nil
 	}
 	app.Action = func(c *cli.Context) {
-		form, err := listToMap(c.StringSlice("form-value"))
+		form, err := listToForm(c.StringSlice("form-value"))
 		if err != nil {
 			glog.Fatalf("Form values error: %v", err)
 		}
-
-		md, err := listToMap(c.StringSlice("metadata"))
+		md, err := listToForm(c.StringSlice("metadata"))
 		if err != nil {
-			glog.Fatalf("Metadata error: %v", err)
+			glog.Fatalf("Metadata values error: %v", err)
 		}
 
 		request := &crawl.Request{
 			URL:       strings.Trim(c.Args().First(), `"'`),
+			Form:      form,
 			Method:    c.String("method"),
 			Referer:   c.String("referer"),
 			Callbacks: c.StringSlice("callback"),
-			Form:      form,
 		}
 
 		ctx := context.Background()
 		if len(md) > 0 {
-			ctx = metadata.NewContext(ctx, mapToMd(md))
+			ctx = metadata.NewContext(ctx, metadata.MD(md))
 		}
 
 		if glog.V(3) {
@@ -157,16 +157,8 @@ func main() {
 	}
 }
 
-func mapToMd(input map[string]string) (md metadata.MD) {
-	md = make(metadata.MD)
-	for key, value := range input {
-		md[key] = []string{value}
-	}
-	return
-}
-
-func listToMap(list []string) (result map[string]string, err error) {
-	result = make(map[string]string)
+func listToForm(list []string) (result url.Values, err error) {
+	result = make(url.Values)
 	for _, keyValue := range list {
 		i := strings.Index(keyValue, "=")
 		if i <= 0 {
@@ -174,7 +166,7 @@ func listToMap(list []string) (result map[string]string, err error) {
 		}
 		key := keyValue[:i]
 		value := keyValue[i+1:]
-		result[key] = value
+		result.Set(key, value)
 	}
 	return
 }

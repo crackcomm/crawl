@@ -1,7 +1,8 @@
-// Package form implements helpers for filling forms.
-package form
+// Package forms implements helpers for filling forms.
+package forms
 
 import (
+	"net/url"
 	"strings"
 
 	"github.com/PuerkitoBio/goquery"
@@ -10,8 +11,8 @@ import (
 
 // Form - Form structure.
 type Form struct {
-	action string
-	values map[string]string
+	Action string
+	Values url.Values
 
 	page *crawl.Response
 	form *goquery.Selection
@@ -20,66 +21,31 @@ type Form struct {
 // New - Creates new form.
 // Page argument is a list because it's optional - only first argument is used.
 func New(page ...*crawl.Response) (form *Form) {
-	form = &Form{values: make(map[string]string)}
+	form = &Form{Values: make(url.Values)}
 	if len(page) >= 1 {
-		form.SetPage(page[0])
+		form.Page(page[0])
 	}
 	return
 }
 
-// GetAction - Gets form action.
-// Form action is selected during SetSelector() from form action attribute.
-func (form *Form) GetAction() string {
-	return form.action
-}
-
-// GetData - Gets form values.
-func (form *Form) GetData() map[string]string {
-	return form.values
-}
-
-// HasValue - Checks if value for key in form data.
-// Value can be empty and it will also be true.
-func (form *Form) HasValue(key string) (ok bool) {
-	_, ok = form.values[key]
+// NewSelector - Creates new form with selector.
+func NewSelector(page *crawl.Response, selector string) (form *Form) {
+	form = New(page)
+	form.Selector(selector)
 	return
 }
 
-// SetPage - Sets html page containing form.
-// It is used in SetSelector() for setting default form values
-// and in SetSelect() for finding select node in a form.
-func (form *Form) SetPage(page *crawl.Response) {
+// Page - Sets html page containing form.
+// It is used in Selector() for setting default form values
+// and in Select() for finding select node in a form.
+func (form *Form) Page(page *crawl.Response) {
 	form.page = page
 }
 
-// SetValue - Sets form value.
-// Returns ok when value was set.
-func (form *Form) SetValue(key, value string) bool {
-	if key != "" {
-		form.values[key] = value
-		return true
-	}
-	return false
-}
-
-// SetValues - Copies values into form values.
-// Current form values are not changed.
-func (form *Form) SetValues(values map[string]string) (ok bool) {
-	ok = true
-	for key, value := range values {
-		// Set only if ok is true
-		// We want ok = false even if just one failed
-		if k := form.SetValue(key, value); ok {
-			ok = k
-		}
-	}
-	return
-}
-
-// SetSelect - Sets value for input of type select
+// Select - Sets value for input of type select
 // Value is chosen by option's text (trimmed of space).
 // Returns ok when value was set.
-func (form *Form) SetSelect(name, text string) (ok bool) {
+func (form *Form) Select(name, text string) (ok bool) {
 	// Get all select fields
 	// Iterate and add value by option text
 	form.form.Find("select").Each(func(_ int, s *goquery.Selection) {
@@ -93,7 +59,7 @@ func (form *Form) SetSelect(name, text string) (ok bool) {
 		s.Find("option").Each(func(_ int, o *goquery.Selection) {
 			if strings.TrimSpace(o.Text()) == text {
 				value, _ := o.Attr("value")
-				ok = form.SetValue(name, value)
+				form.Values.Set(name, value)
 			}
 		})
 	})
@@ -101,22 +67,17 @@ func (form *Form) SetSelect(name, text string) (ok bool) {
 	return
 }
 
-// SetSelector - Sets form selector and parses default values.
-// At this point page has to be set using SetPage() method.
-func (form *Form) SetSelector(selector string) {
-	// Get form
+// Selector - Sets form selector and parses default values.
+// At this point page has to be set using Page() method.
+func (form *Form) Selector(selector string) {
 	form.form = form.page.Query().Find(selector)
-
-	// Set form action
-	form.action, _ = form.form.Attr("action")
-
-	// Set default values
-	form.setDefaults(selector)
+	form.Action, _ = form.form.Attr("action")
+	form.selector(selector)
 }
 
-// setDefaults - Finds all inputs and selects
+// selector - Finds all inputs and selects
 // and sets their default values.
-func (form *Form) setDefaults(selector string) {
+func (form *Form) selector(selector string) {
 	// Iterate over all inputs and set their default value
 	// If input is of kind radio or checkbox
 	// Set value only if it's selected
@@ -134,7 +95,7 @@ func (form *Form) setDefaults(selector string) {
 
 		name, _ := s.Attr("name")
 		value, _ := s.Attr("value")
-		form.SetValue(name, value)
+		form.Values.Set(name, value)
 	})
 
 	// Iterate over all select nodes
@@ -162,7 +123,7 @@ func (form *Form) setDefaults(selector string) {
 		})
 
 		// Set form value
-		form.SetValue(name, value)
+		form.Values.Set(name, value)
 	})
 
 	return
