@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"time"
 
 	"github.com/codegangsta/cli"
 	"github.com/golang/glog"
@@ -70,6 +71,12 @@ var Flags = []cli.Flag{
 		Name:   "concurrency",
 		Value:  100,
 		EnvVar: "CONCURRENCY",
+	},
+	cli.IntFlag{
+		Name:   "timeout",
+		Usage:  "default timeout in seconds",
+		Value:  30,
+		EnvVar: "TIMEOUT",
 	},
 }
 
@@ -182,7 +189,7 @@ func (app *App) Before(c *cli.Context) (err error) {
 
 func beforeApp(c *cli.Context) error {
 	if c.String("topic") == "" {
-		return errors.New("Flag --topic cannot be empty.")
+		return errors.New("flag --topic cannot be empty")
 	}
 	if len(c.StringSlice("nsq-addr")) == 0 && len(c.StringSlice("nsqlookup-addr")) == 0 {
 		return errors.New("At least one --nsq-addr or --nsqlookup-addr is required")
@@ -206,5 +213,6 @@ func crawlerConstructor(app *App) crawl.Crawler {
 	return crawl.New(
 		crawl.WithQueue(app.Queue),
 		crawl.WithConcurrency(app.Ctx.Int("concurrency")),
+		crawl.WithDefaultTimeout(time.Duration(app.Ctx.Int("timeout"))*time.Second),
 	)
 }
