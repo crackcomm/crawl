@@ -182,7 +182,10 @@ func (app *App) connectNSQ(c *cli.Context) (err error) {
 // Before - Executed before action.
 func (app *App) Before(c *cli.Context) (err error) {
 	if app.before != nil {
-		return app.before(app)
+		err = app.before(app)
+		if err != nil {
+			return
+		}
 	}
 	return beforeApp(c)
 }
