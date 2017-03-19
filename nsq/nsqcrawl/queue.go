@@ -47,7 +47,7 @@ type Queue struct {
 // It will not call job.Done ever.
 func (queue *Queue) Schedule(ctx context.Context, req *crawl.Request) (err error) {
 	md, _ := metadata.FromContext(ctx)
-	r := &request{Request: req, Metadata: md}
+	r := &Request{Request: req, Metadata: md}
 	if deadline, ok := ctx.Deadline(); ok {
 		r.Deadline = deadline
 	}
@@ -78,7 +78,7 @@ func (queue *Queue) Close() (err error) {
 }
 
 func (queue *Queue) nsqHandler(msg *consumer.Message) {
-	req := new(request)
+	req := new(Request)
 	err := msg.ReadJSON(req)
 	if err != nil {
 		glog.V(3).Infof("nsq json (%s) error: %v", msg.Body, err)
@@ -113,7 +113,8 @@ func (queue *Queue) nsqHandler(msg *consumer.Message) {
 	queue.channel <- &nsqJob{msg: msg, req: req.Request, ctx: ctx}
 }
 
-type request struct {
+// Request - Request as it is in NSQ.
+type Request struct {
 	Request  *crawl.Request `json:"request,omitempty"`
 	Deadline time.Time      `json:"deadline,omitempty"`
 	Metadata metadata.MD    `json:"metadata,omitempty"`
