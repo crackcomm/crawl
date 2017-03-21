@@ -82,6 +82,9 @@ func New(opts ...Option) Crawler {
 			TLSHandshakeTimeout:   c.opts.defaultTimeout,
 			ResponseHeaderTimeout: c.opts.defaultTimeout,
 			ExpectContinueTimeout: time.Second,
+			// Connection pooling
+			MaxIdleConns:    100,
+			IdleConnTimeout: 30 * time.Second,
 		}
 	}
 	c.client = &http.Client{
