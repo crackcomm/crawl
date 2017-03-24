@@ -2,15 +2,14 @@
 package consumer
 
 import (
-	"errors"
-	"fmt"
 	"os"
 	"os/signal"
 	"time"
 
-	"github.com/codegangsta/cli"
 	"github.com/golang/glog"
+	"gopkg.in/urfave/cli.v2"
 
+	clinsq "github.com/crackcomm/cli-nsq"
 	"github.com/crackcomm/crawl"
 	"github.com/crackcomm/crawl/nsq/nsqcrawl"
 )
@@ -47,43 +46,27 @@ type App struct {
 
 // Flags - Consumer app flags.
 var Flags = []cli.Flag{
-	cli.StringFlag{
-		Name:   "topic",
-		EnvVar: "TOPIC",
-		Usage:  "crawl requests nsq topic (required)",
-		Value:  "crawl_requests",
+	clinsq.AddrFlag,
+	clinsq.LookupAddrFlag,
+	clinsq.TopicFlag,
+	clinsq.ChannelFlag,
+	&cli.IntFlag{
+		Name:    "concurrency",
+		Value:   100,
+		EnvVars: []string{"CONCURRENCY"},
 	},
-	cli.StringFlag{
-		Name:   "channel",
-		EnvVar: "CHANNEL",
-		Usage:  "crawl requests nsq channel (required)",
-		Value:  "default",
-	},
-	cli.StringSliceFlag{
-		Name:   "nsq-addr",
-		EnvVar: "NSQ_ADDR",
-	},
-	cli.StringSliceFlag{
-		Name:   "nsqlookup-addr",
-		EnvVar: "NSQLOOKUP_ADDR",
-	},
-	cli.IntFlag{
-		Name:   "concurrency",
-		Value:  100,
-		EnvVar: "CONCURRENCY",
-	},
-	cli.IntFlag{
-		Name:   "timeout",
-		Usage:  "default timeout in seconds",
-		Value:  30,
-		EnvVar: "TIMEOUT",
+	&cli.IntFlag{
+		Name:    "timeout",
+		Usage:   "default timeout in seconds",
+		Value:   30,
+		EnvVars: []string{"TIMEOUT"},
 	},
 }
 
 // New - Creates nsq consumer app.
 func New(opts ...Option) *cli.App {
 	app := &App{opts: opts}
-	cliapp := cli.NewApp()
+	cliapp := (&cli.App{})
 	cliapp.Name = "crawler"
 	cliapp.HelpName = cliapp.Name
 	cliapp.Version = "0.0.1"
@@ -94,7 +77,7 @@ func New(opts ...Option) *cli.App {
 }
 
 // Action - Command line action.
-func (app *App) Action(c *cli.Context) {
+func (app *App) Action(c *cli.Context) error {
 	app.Ctx = c
 	app.Queue = nsqcrawl.NewQueue(c.String("topic"), c.String("channel"), c.Int("concurrency"))
 
@@ -103,19 +86,23 @@ func (app *App) Action(c *cli.Context) {
 	}
 
 	if err := app.Before(c); err != nil {
-		glog.Fatal(err)
+		return err
 	}
 
+	// Construct crawler
+	// It has to be done before connecting to nsq
 	crawler := app.Crawler()
 
-	if err := app.connectNSQ(c); err != nil {
-		glog.Fatal(err)
-	}
-
+	// Register all spiders
 	for _, spiderConstructor := range app.spiderConstructors {
 		if spider := spiderConstructor(app); spider != nil {
 			spider(crawler)
 		}
+	}
+
+	// Connect to nsq and nsqlookup
+	if err := clinsq.Connect(c); err != nil {
+		return err
 	}
 
 	go func() {
@@ -139,44 +126,12 @@ func (app *App) Action(c *cli.Context) {
 		select {
 		case <-done:
 			glog.Info("Crawler closed")
-			return
+			return nil
 		case s := <-sig:
 			glog.Infof("Received signal %v, closing crawler", s)
-			if err := app.Queue.Close(); err != nil {
-				glog.Fatalf("Error closing queue: %v", err)
-			}
-			return
+			return app.Queue.Close()
 		}
 	}
-}
-
-func (app *App) connectNSQ(c *cli.Context) (err error) {
-	nsqAddr := c.StringSlice("nsq-addr")[0]
-	if err := app.Queue.Producer.Connect(nsqAddr); err != nil {
-		return fmt.Errorf("Error connecting producer to %q: %v", nsqAddr, err)
-	}
-
-	if addrs := c.StringSlice("nsq-addr"); len(addrs) != 0 {
-		for _, addr := range addrs {
-			glog.V(3).Infof("Connecting to nsq %s", addr)
-			if err := app.Queue.Consumer.Connect(addr); err != nil {
-				return fmt.Errorf("Error connecting to nsq %q: %v", addr, err)
-			}
-			glog.V(3).Infof("Connected to nsq %s", addr)
-		}
-	}
-
-	if addrs := c.StringSlice("nsqlookup-addr"); len(addrs) != 0 {
-		for _, addr := range addrs {
-			glog.V(3).Infof("Connecting to nsq lookup %s", addr)
-			if err := app.Queue.Consumer.ConnectLookupd(addr); err != nil {
-				return fmt.Errorf("Error connecting to nsq lookup %q: %v", addr, err)
-			}
-			glog.V(3).Infof("Connected to nsq lookup %s", addr)
-		}
-	}
-
-	return
 }
 
 // Before - Executed before action.
@@ -187,17 +142,7 @@ func (app *App) Before(c *cli.Context) (err error) {
 			return
 		}
 	}
-	return beforeApp(c)
-}
-
-func beforeApp(c *cli.Context) error {
-	if c.String("topic") == "" {
-		return errors.New("flag --topic cannot be empty")
-	}
-	if len(c.StringSlice("nsq-addr")) == 0 && len(c.StringSlice("nsqlookup-addr")) == 0 {
-		return errors.New("At least one --nsq-addr or --nsqlookup-addr is required")
-	}
-	return nil
+	return clinsq.RequireAll(c)
 }
 
 // Crawler - Returns app crawler. Constructs if empty.
