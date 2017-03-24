@@ -11,15 +11,15 @@ import (
 	"strconv"
 	"strings"
 
-	"google.golang.org/grpc/metadata"
-
-	"golang.org/x/net/context"
-
-	"github.com/codegangsta/cli"
+	cliflags "github.com/crackcomm/cli-flags"
+	"github.com/crackcomm/cli-nsq"
 	"github.com/crackcomm/crawl"
 	"github.com/crackcomm/crawl/nsq/nsqcrawl"
 	"github.com/golang/glog"
 	"github.com/nsqio/go-nsq"
+	"golang.org/x/net/context"
+	"google.golang.org/grpc/metadata"
+	"gopkg.in/urfave/cli.v2"
 )
 
 func main() {
@@ -35,78 +35,64 @@ func main() {
 	// We are setting glog to log to stderr
 	flag.CommandLine.Parse([]string{"-logtostderr", verbosity})
 
-	app := cli.NewApp()
+	app := (&cli.App{})
 	app.Name = "crawl-schedule"
+	app.ArgsUsage = "<url>"
 	app.HelpName = app.Name
 	app.Version = "0.0.1"
-	app.ArgsUsage = "<url>"
 	app.Usage = "schedules a crawl request in nsq"
 	app.Flags = []cli.Flag{
-		cli.StringFlag{
-			Name:   "nsq-addr",
-			EnvVar: "NSQ_ADDR",
-			Usage:  "nsq address (required)",
-		},
-		cli.StringFlag{
-			Name:   "topic",
-			EnvVar: "TOPIC",
-			Usage:  "crawl requests nsq topic (required)",
-			Value:  "crawl_requests",
-		},
-		cli.StringSliceFlag{
+		clinsq.AddrFlag,
+		clinsq.TopicFlag,
+		&cli.StringSliceFlag{
 			Name:  "form-value",
 			Usage: "form value in format (format: key=value)",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "metadata",
 			Usage: "metadata value in format (format: key=value)",
 		},
-		cli.StringSliceFlag{
+		&cli.StringSliceFlag{
 			Name:  "callback",
 			Usage: "crawl request callbacks (required)",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "referer",
 			Usage: "crawl request referer",
 		},
-		cli.StringFlag{
+		&cli.StringFlag{
 			Name:  "method",
 			Usage: "crawl request referer",
 			Value: "GET",
 		},
-		cli.DurationFlag{
+		&cli.DurationFlag{
 			Name:  "timeout",
 			Usage: "request timeout",
 		},
 	}
 	app.Before = func(c *cli.Context) error {
-		var errs []string
-		if len(c.String("topic")) == 0 {
-			errs = append(errs, "Topic cannot be empty")
-		}
-		if len(c.String("nsq-addr")) == 0 {
-			errs = append(errs, "At least one --nsq-addr is required")
+		if err := cliflags.RequireAll(c, []cli.Flag{
+			clinsq.AddrFlag,
+			clinsq.TopicFlag,
+		}); err != nil {
+			return err
 		}
 		if len(c.StringSlice("callback")) == 0 {
-			errs = append(errs, "At least one --callback is required")
+			return errors.New("--callback flag is missing")
 		}
-		if len(c.Args()) != 1 {
-			errs = append(errs, "At least one url is required in arguments.")
-		}
-		if len(errs) != 0 {
-			errs = append([]string{"Errors:"}, errs...)
-			return errors.New(strings.Join(errs, "\n"))
+		if c.Args().Len() != 1 {
+			return errors.New("URL argument is missing")
 		}
 		return nil
 	}
-	app.Action = func(c *cli.Context) {
+	app.Action = func(c *cli.Context) error {
 		form, err := listToForm(c.StringSlice("form-value"))
 		if err != nil {
-			glog.Fatalf("Form values error: %v", err)
+			return fmt.Errorf("Form values error: %v", err)
 		}
 		md, err := listToForm(c.StringSlice("metadata"))
 		if err != nil {
-			glog.Fatalf("Metadata values error: %v", err)
+			return fmt.Errorf("Metadata values error: %v", err)
 		}
 
 		request := &crawl.Request{
@@ -140,7 +126,7 @@ func main() {
 		cfg := nsq.NewConfig()
 		cfg.OutputBufferTimeout = 0
 		if err := q.Producer.ConnectConfig(c.String("nsq-addr"), cfg); err != nil {
-			glog.Fatalf("Error connecting to nsq: %v", err)
+			return fmt.Errorf("Error connecting to nsq: %v", err)
 		}
 
 		// Configure NSQ producer logger
@@ -148,8 +134,9 @@ func main() {
 
 		// Schedule request
 		if err := q.Schedule(ctx, request); err != nil {
-			glog.Fatalf("schedule error: %v", err)
+			return fmt.Errorf("schedule error: %v", err)
 		}
+		return nil
 	}
 
 	if err := app.Run(os.Args); err != nil {
