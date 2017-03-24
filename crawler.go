@@ -1,7 +1,6 @@
 package crawl
 
 import (
-	"fmt"
 	"io"
 	"math/rand"
 	"net"
@@ -16,6 +15,7 @@ import (
 
 	"golang.org/x/net/context"
 	"golang.org/x/net/context/ctxhttp"
+	"golang.org/x/net/proxy"
 )
 
 // Handler - Crawler handler.
@@ -74,18 +74,10 @@ func New(opts ...Option) Crawler {
 		opt(c)
 	}
 	if c.transport == nil {
-		c.transport = &http.Transport{
-			Dial: (&net.Dialer{
-				Timeout:   c.opts.defaultTimeout,
-				KeepAlive: c.opts.defaultTimeout,
-			}).Dial,
-			TLSHandshakeTimeout:   c.opts.defaultTimeout,
-			ResponseHeaderTimeout: c.opts.defaultTimeout,
-			ExpectContinueTimeout: time.Second,
-			// Connection pooling
-			MaxIdleConns:    100,
-			IdleConnTimeout: 30 * time.Second,
-		}
+		c.transport = c.defaultTransport((&net.Dialer{
+			Timeout:   c.opts.defaultTimeout,
+			KeepAlive: c.opts.defaultTimeout,
+		}).Dial)
 	}
 	c.client = &http.Client{
 		Timeout:   c.opts.defaultTimeout,
@@ -174,9 +166,14 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 
 	client := crawl.client
 	if addrs, ok := ProxyFromContext(ctx); ok && len(addrs) > 0 {
+		transport, err := crawl.transportFromProxies(addrs)
+		if err != nil {
+			return nil, err
+		}
+
 		client = &http.Client{
 			Timeout:   crawl.opts.defaultTimeout,
-			Transport: crawl.transportFromProxies(addrs),
+			Transport: transport,
 		}
 	}
 
@@ -206,27 +203,24 @@ func (crawl *crawl) Execute(ctx context.Context, req *Request) (resp *Response, 
 	return
 }
 
-func (crawl *crawl) transportFromProxies(addrs []string) *http.Transport {
-	return &http.Transport{
-		Dial: (&net.Dialer{
-			Timeout:   crawl.opts.defaultTimeout,
-			KeepAlive: crawl.opts.defaultTimeout,
-		}).Dial,
-		TLSHandshakeTimeout:   crawl.opts.defaultTimeout,
-		ResponseHeaderTimeout: crawl.opts.defaultTimeout,
-		ExpectContinueTimeout: time.Second,
-		Proxy: func(_ *http.Request) (*url.URL, error) {
-			addr := addrs[rand.Intn(len(addrs))]
-			u, err := url.Parse(addr)
-			if err != nil || !strings.HasPrefix(u.Scheme, "http") {
-				u, err = url.Parse("http://" + addr)
-			}
-			if err != nil {
-				return nil, fmt.Errorf("invalid proxy address %q: %v", addr, err)
-			}
-			return u, nil
-		},
+func (crawl *crawl) transportFromProxies(addrs []string) (_ *http.Transport, err error) {
+	// Get a random proxy address from the list
+	addr := addrs[rand.Intn(len(addrs))]
+
+	// Parse proxy URL
+	proxyURL, err := url.Parse(addr)
+	if err != nil {
+		return
 	}
+
+	// Create a proxy dialer
+	proxy, err := proxy.FromURL(proxyURL, proxy.Direct)
+	if err != nil {
+		return
+	}
+
+	// Make a http.Transport that uses the proxy dialer
+	return crawl.defaultTransport(proxy.Dial), nil
 }
 
 func (crawl *crawl) executeHandlers(ctx context.Context, resp *Response) (err error) {
@@ -285,4 +279,16 @@ func (crawl *crawl) Errors() <-chan error {
 
 func (crawl *crawl) Handlers() map[string][]Handler {
 	return crawl.handlers
+}
+
+func (crawl *crawl) defaultTransport(dialer func(network, addr string) (net.Conn, error)) *http.Transport {
+	return &http.Transport{
+		Dial:                  dialer,
+		TLSHandshakeTimeout:   crawl.opts.defaultTimeout,
+		ResponseHeaderTimeout: crawl.opts.defaultTimeout,
+		ExpectContinueTimeout: time.Second,
+		// Connection pooling
+		MaxIdleConns:    100,
+		IdleConnTimeout: 30 * time.Second,
+	}
 }
