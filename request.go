@@ -21,6 +21,8 @@ type Request struct {
 	Form url.Values `json:"form,omitempty"`
 	// Query - Form values which set as url query.
 	Query url.Values `json:"query,omitempty"`
+	// Cookies - Request cookies.
+	Cookies url.Values `json:"cookies,omitempty"`
 	// Header - Header values.
 	Header map[string]string `json:"header,omitempty"`
 	// Raw - when set to false, it means we expect HTML response
@@ -62,6 +64,12 @@ func ConstructHTTPRequest(req *Request) (r *http.Request, err error) {
 
 	for key, value := range req.Header {
 		r.Header.Set(key, value)
+	}
+
+	for name, values := range req.Cookies {
+		for _, value := range values {
+			r.AddCookie(&http.Cookie{Name: name, Value: value})
+		}
 	}
 
 	// Set referer if any
