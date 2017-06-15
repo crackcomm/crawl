@@ -13,6 +13,9 @@ func TestProxyFromContext(t *testing.T) {
 	if !ok {
 		t.Fail()
 	}
+	if len(addrs) != 2 {
+		t.Fail()
+	}
 	if addrs[0] != "a" || addrs[1] != "b" {
 		t.Fail()
 	}
