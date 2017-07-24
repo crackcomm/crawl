@@ -290,5 +290,7 @@ func (crawl *crawl) defaultTransport(dialer func(network, addr string) (net.Conn
 		// Connection pooling
 		MaxIdleConns:    100,
 		IdleConnTimeout: 30 * time.Second,
+		// Proxy from OS environment
+		Proxy: http.ProxyFromEnvironment,
 	}
 }
